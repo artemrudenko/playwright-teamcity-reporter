@@ -1,0 +1,38 @@
+{
+  "name": "playwright-teamcity-reporter",
+  "version": "1.0.2",
+  "description": "Playwright Teamcity Reporter",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "npm run clean && npm run dev",
+    "clean": "rimraf -- dist",
+    "dev": "npm run lint && tsc",
+    "dev:watch": "nodemon --exec npm run dev || exit 1",
+    "lint": "eslint src/**",
+    "lint:fix": "eslint --fix src/**",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint",
+    "preversion": "npm run lint"
+  },
+  "keywords": [
+    "playwright",
+    "teamcity",
+    "reporter"
+  ],
+  "author": "artemr@compatibl.com",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.17.1",
+    "@types/node": "^13.9.0",
+    "@typescript-eslint/eslint-plugin": "^5.5.0",
+    "@typescript-eslint/parser": "^5.5.0",
+    "eslint": "^8.3.0",
+    "rimraf": "3.0.2",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.2"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}
