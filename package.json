@@ -1,9 +1,16 @@
 {
   "name": "playwright-teamcity-reporter",
-  "version": "1.0.2",
+  "version": "0.0.1",
   "description": "Playwright Teamcity Reporter",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/artemrudenko/playwright-teamcity-reporter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/artemrudenko/playwright-teamcity-reporter/issues"
+  },
   "scripts": {
     "build": "npm run clean && npm run dev",
     "clean": "rimraf -- dist",
@@ -20,7 +27,7 @@
     "teamcity",
     "reporter"
   ],
-  "author": "artemr@compatibl.com",
+  "author": "artemr2009@gmail.com",
   "license": "ISC",
   "devDependencies": {
     "@playwright/test": "^1.17.1",
