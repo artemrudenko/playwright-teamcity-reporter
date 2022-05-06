@@ -1,5 +1,4 @@
 import { FullConfig, TestError } from '@playwright/test';
-import { mocked } from 'jest-mock';
 import { Suite } from '@playwright/test/reporter';
 
 import TeamcityReporter from './teamcity.reporter';
@@ -47,7 +46,7 @@ describe(`TeamcityReporter`, () => {
       project: jest.fn()
     };
 
-    const reporter = new TeamcityReporter()
+    const reporter = new TeamcityReporter();
     reporter.onBegin(config, suite);
 
     expect(reporter)
