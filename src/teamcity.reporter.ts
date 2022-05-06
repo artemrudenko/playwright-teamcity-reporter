@@ -21,18 +21,51 @@ class NotImplementedError extends Error {
 }
 
 class TeamcityReporter implements Reporter {
-  private suite!: Suite;
+  private readonly testMetadataArtifacts: string;
+
   private flowId!: string;
+  private report!: 'onTestBegin' | 'onEnd';
+  private rootSuite!: Suite;
+
+  private lastRunningSuite: Suite | undefined;
+
+  constructor(configuration: Partial<{
+    testMetadataArtifacts: string;
+  }> = {}) {
+    this.testMetadataArtifacts = configuration.testMetadataArtifacts ?? process.env.TEAMCITY_ARTIFACTS_PW_RESULT ?? 'test-results';
+  }
 
   onBegin(config: FullConfig, suite: Suite) {
     this.flowId = process.pid.toString();
-    this.suite = suite;
+    this.rootSuite = suite;
 
-    console.log(`'${JSON.stringify(config)}'`);
+    if (config.workers === 1) {
+      this.report = 'onTestBegin';
+    } else {
+      console.info('Playwright is running suites in multiple workers. The results will be reported after all of them finish.');
+      this.report = 'onEnd';
+    }
+
+    console.info(`'${JSON.stringify(config)}'`);
   }
 
   onError(error: TestError) {
     console.error(error);
+  }
+
+  onTestBegin(test: TestCase): void {
+    if (this.report === 'onTestBegin') {
+      let parentSuite = test.parent;
+      while (parentSuite?.parent?.parent !== this.rootSuite && parentSuite.parent) {
+        parentSuite = parentSuite.parent;
+      }
+      if (parentSuite !== this.lastRunningSuite) {
+        if (typeof this.lastRunningSuite !== 'undefined') {
+          this.logSuiteResults(this.lastRunningSuite);
+        }
+        this.lastRunningSuite = parentSuite;
+      }
+    }
   }
 
   onEnd(result: FullResult) {
@@ -40,23 +73,28 @@ class TeamcityReporter implements Reporter {
     // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Importing+XML+Reports
     // console.log(`##teamcity[importData type='junit' path='test-results.xml']`)
 
-    console.log(`Finished the run: ${result.status}`);
-
-    const projectSuites = this.suite.suites;
-    for (const suite of projectSuites) {
-      suite.suites.map(s => this.logSuiteResults(s));
+    switch (this.report) {
+      case 'onTestBegin':
+        if (typeof this.lastRunningSuite !== 'undefined') {
+          this.logSuiteResults(this.lastRunningSuite);
+        }
+        break;
+      case 'onEnd':
+        this.rootSuite.suites
+          .flatMap((projectSuite) => projectSuite.suites)
+          .forEach((suite) => this.logSuiteResults(suite));
+        break;
     }
+
+    console.info(`Finished the run: ${result.status}`);
   }
 
-  private logSuiteResults(suite: Suite): any {
+  private logSuiteResults(suite: Suite): void {
     this.logToTC(`testSuiteStarted`, [
       `name='${TeamcityReporter.escape(suite.title)}'`
     ]);
-    if (suite.suites.length > 0) {
-      suite.suites.map(s => this.logSuiteResults(s));
-    } else {
-      suite.tests.map(t => this.logTestResults(t));
-    }
+    suite.tests.forEach(t => this.logTestResults(t));
+    suite.suites.forEach(s => this.logSuiteResults(s));
     this.logToTC(`testSuiteFinished`, [
       `name='${TeamcityReporter.escape(suite.title)}'`
     ]);
@@ -107,9 +145,7 @@ class TeamcityReporter implements Reporter {
 
     // https://www.jetbrains.com/help/teamcity/2021.2/reporting-test-metadata.html#Reporting+additional+test+data
     // 'test-results' should be a part of the artifacts directory
-    const artifact = process.env['TEAMCITY_ARTIFACTS_PW_RESULT'] !== undefined
-      ? process.env['TEAMCITY_ARTIFACTS_PW_RESULT']
-      : 'test-results';
+    const artifact = this.testMetadataArtifacts;
     for (const attachment of (result?.attachments || [])) {
       let value = '';
       if (attachment.path !== undefined) {
