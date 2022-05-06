@@ -21,8 +21,16 @@ class NotImplementedError extends Error {
 }
 
 class TeamcityReporter implements Reporter {
+  private readonly testMetadataArtifacts: string;
+
   private suite!: Suite;
   private flowId!: string;
+
+  constructor(configuration: Partial<{
+    testMetadataArtifacts: string;
+  }> = {}) {
+    this.testMetadataArtifacts = configuration.testMetadataArtifacts ?? process.env.TEAMCITY_ARTIFACTS_PW_RESULT ?? 'test-results';
+  }
 
   onBegin(config: FullConfig, suite: Suite) {
     this.flowId = process.pid.toString();
@@ -107,9 +115,7 @@ class TeamcityReporter implements Reporter {
 
     // https://www.jetbrains.com/help/teamcity/2021.2/reporting-test-metadata.html#Reporting+additional+test+data
     // 'test-results' should be a part of the artifacts directory
-    const artifact = process.env['TEAMCITY_ARTIFACTS_PW_RESULT'] !== undefined
-      ? process.env['TEAMCITY_ARTIFACTS_PW_RESULT']
-      : 'test-results';
+    const artifact = this.testMetadataArtifacts;
     for (const attachment of (result?.attachments || [])) {
       let value = '';
       if (attachment.path !== undefined) {
