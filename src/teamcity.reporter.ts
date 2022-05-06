@@ -5,7 +5,7 @@ type SuiteStates = 'testSuiteStarted' | 'testSuiteFinished';
 type TestStates = 'testStarted' | 'testMetadata' | 'testFinished' | 'testIgnored' | 'testFailed';
 type StdTypes = 'testStdOut' | 'testStdErr';
 
-type ActionType = `testRunConfig` | SuiteStates | TestStates | StdTypes;
+type ActionType = SuiteStates | TestStates | StdTypes;
 
 // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html
 class NotImplementedError extends Error {
@@ -22,13 +22,13 @@ class NotImplementedError extends Error {
 
 class TeamcityReporter implements Reporter {
   private suite!: Suite;
-  private config!: FullConfig;
   private flowId!: string;
 
   onBegin(config: FullConfig, suite: Suite) {
     this.flowId = process.pid.toString();
-    this.config = config;
     this.suite = suite;
+
+    console.log(`'${JSON.stringify(config)}'`);
   }
 
   onError(error: TestError) {
@@ -41,7 +41,6 @@ class TeamcityReporter implements Reporter {
     // console.log(`##teamcity[importData type='junit' path='test-results.xml']`)
 
     console.log(`Finished the run: ${result.status}`);
-    this.logToTC(`testRunConfig`, [`'${JSON.stringify(this.config)}'`]);
 
     const projectSuites = this.suite.suites;
     for (const suite of projectSuites) {
