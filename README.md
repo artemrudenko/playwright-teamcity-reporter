@@ -1,5 +1,7 @@
 # Playwright Teamcity Reporter
 
+[![Build and test](https://github.com/artemrudenko/playwright-teamcity-reporter/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/artemrudenko/playwright-teamcity-reporter/actions/workflows/build-and-test.yml)
+
 This package will report your @playwright/test results to your Teamcity CI server, so you can see the number of executed tests, test failures and the tests tab right from your Teamcity UI.
 
 ## Installation
