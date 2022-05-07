@@ -1,52 +1,45 @@
+import { Reporter, Suite, FullConfig, TestCase, TestError, TestResult, FullResult } from '@playwright/test/reporter';
 import * as path from 'path';
-import { FullResult, Reporter, Suite, FullConfig, TestCase, TestError } from '@playwright/test/reporter';
 
-type SuiteStates = 'testSuiteStarted' | 'testSuiteFinished';
-type TestStates = 'testStarted' | 'testMetadata' | 'testFinished' | 'testIgnored' | 'testFailed';
-type StdTypes = 'testStdOut' | 'testStdErr';
+import { NotImplementedError } from './errors';
+import { ActionType, ITeamcityReporterConfiguration, ReporterMode } from './teamcity.model';
 
-type ActionType = SuiteStates | TestStates | StdTypes;
-
-// https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html
-class NotImplementedError extends Error {
-  constructor(message: string) {
-    super(message);
-
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, NotImplementedError);
-    }
-
-    this.name = 'NotImplementedError';
-  }
-}
-
+// https://www.jetbrains.com/help/teamcity/service-messages.html
 class TeamcityReporter implements Reporter {
-  private readonly testMetadataArtifacts: string;
+  static readonly #TZ_OFFSET = (new Date()).getTimezoneOffset() * 60000; // offset in milliseconds
+  readonly #testMetadataArtifacts: string;
 
-  private flowId!: string;
-  private report!: 'onTestBegin' | 'onEnd';
-  private rootSuite!: Suite;
+  flowId!: string;
+  rootSuite!: Suite;
 
-  private lastRunningSuite: Suite | undefined;
+  #config!: FullConfig;
+  #mode!: ReporterMode;
+  #lastRunningSuite: Suite | undefined;
 
-  constructor(configuration: Partial<{
-    testMetadataArtifacts: string;
-  }> = {}) {
-    this.testMetadataArtifacts = configuration.testMetadataArtifacts ?? process.env.TEAMCITY_ARTIFACTS_PW_RESULT ?? 'test-results';
+  constructor(configuration?: ITeamcityReporterConfiguration) {
+    this.#testMetadataArtifacts = configuration?.testMetadataArtifacts
+      ?? process.env.TEAMCITY_ARTIFACTS_PW_RESULT
+      ?? 'test-results';
   }
 
   onBegin(config: FullConfig, suite: Suite) {
     this.flowId = process.pid.toString();
+    this.#config = config;
     this.rootSuite = suite;
 
     if (config.workers === 1) {
-      this.report = 'onTestBegin';
+      this.#mode = ReporterMode.Test;
     } else {
       console.info('Playwright is running suites in multiple workers. The results will be reported after all of them finish.');
-      this.report = 'onEnd';
+      this.#mode = ReporterMode.Suite;
     }
 
-    console.info(`'${JSON.stringify(config)}'`);
+    this.logToTC(`message`, [`text='${JSON.stringify(this.#config, undefined, 2)}'`]);
+
+    // https://www.jetbrains.com/help/teamcity/service-messages.html#Enabling+Test+Retry
+    if (this.#config.projects.some(project => project.retries > 0)) {
+      this.logToTC(`testRetrySupport`, [`enabled='true'`]);
+    }
   }
 
   onError(error: TestError) {
@@ -54,60 +47,76 @@ class TeamcityReporter implements Reporter {
   }
 
   onTestBegin(test: TestCase): void {
-    if (this.report === 'onTestBegin') {
+    if (this.#mode === ReporterMode.Test) {
       let parentSuite = test.parent;
       while (parentSuite?.parent?.parent !== this.rootSuite && parentSuite.parent) {
         parentSuite = parentSuite.parent;
       }
-      if (parentSuite !== this.lastRunningSuite) {
-        if (typeof this.lastRunningSuite !== 'undefined') {
-          this.logSuiteResults(this.lastRunningSuite);
+      if (parentSuite !== this.#lastRunningSuite) {
+        if (this.#lastRunningSuite !== undefined) {
+          this.#logSuiteResults(this.#lastRunningSuite);
         }
-        this.lastRunningSuite = parentSuite;
+        this.#lastRunningSuite = parentSuite;
       }
     }
   }
 
   onEnd(result: FullResult) {
-    // @TODO try this
-    // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Importing+XML+Reports
-    // console.log(`##teamcity[importData type='junit' path='test-results.xml']`)
-
-    switch (this.report) {
-      case 'onTestBegin':
-        if (typeof this.lastRunningSuite !== 'undefined') {
-          this.logSuiteResults(this.lastRunningSuite);
+    switch (this.#mode) {
+      case ReporterMode.Test:
+        if (this.#lastRunningSuite !== undefined) {
+          this.#logSuiteResults(this.#lastRunningSuite);
         }
         break;
-      case 'onEnd':
+      case ReporterMode.Suite:
+      default:
+        // @TODO try this
+        // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Importing+XML+Reports
+        // console.log(`##teamcity[importData type='junit' path='test-results.xml']`);
         this.rootSuite.suites
-          .flatMap((projectSuite) => projectSuite.suites)
-          .forEach((suite) => this.logSuiteResults(suite));
+          .flatMap(fileSuite => fileSuite.suites)
+          .forEach(storySuite => this.#logSuiteResults(storySuite));
         break;
     }
-
     console.info(`Finished the run: ${result.status}`);
   }
 
-  private logSuiteResults(suite: Suite): void {
+  logToTC(action: ActionType, parts: string[]) {
+    const textParts = [
+      `##teamcity[${action}`,
+      ...parts.filter(part => !!part),
+      `flowId='${this.flowId}']`
+    ];
+    console.log(textParts.join(' '));
+  }
+
+  #logSuiteResults(suite: Suite): void {
     this.logToTC(`testSuiteStarted`, [
       `name='${TeamcityReporter.escape(suite.title)}'`
     ]);
-    suite.tests.forEach(t => this.logTestResults(t));
-    suite.suites.forEach(s => this.logSuiteResults(s));
+
+    suite.tests.forEach((testCase: TestCase) => this.#logTestResults(testCase));
+    suite.suites.forEach((suite: Suite) => this.#logSuiteResults(suite));
+
     this.logToTC(`testSuiteFinished`, [
       `name='${TeamcityReporter.escape(suite.title)}'`
     ]);
   }
 
-  private logTestResults(test: TestCase) {
-    const name = TeamcityReporter.escape(test.title);
-    const tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds
-    const result = test.results.pop();
-    if (result === undefined) {
-      throw new Error(`Result should not be empty`);
+  #logTestResults(test: TestCase) {
+    const title = TeamcityReporter.escape(test.title);
+    if (process.env['PW_REPORT_All_RESULTS'] !== undefined) {
+      test.results.forEach((result, index) => this.#logResult(index === 0 ? title : `${title}_#${index}`, result, test.timeout));
+    } else {
+      const result = test.results.pop();
+      if (result) {
+        this.#logResult(title, result, test.timeout);
+      }
     }
-    const localISOTime = new Date(result?.startTime.getTime() - tzoffset)
+  }
+
+  #logResult(name: string, result: TestResult, timeout: number) {
+    const localISOTime = new Date(result?.startTime.getTime() - TeamcityReporter.#TZ_OFFSET)
       .toISOString()
       .slice(0, -1);
     this.logToTC(`testStarted`, [
@@ -126,7 +135,7 @@ class TeamcityReporter implements Reporter {
       case 'timedOut':
         this.logToTC(`testFailed`, [
           `name='${name}'`,
-          `message='Timeout of ${test.timeout}ms exceeded.'`,
+          `message='Timeout of ${timeout}ms exceeded.'`,
           `details='${TeamcityReporter.escape(result?.error?.stack || '')}'`
         ]);
         break;
@@ -140,12 +149,11 @@ class TeamcityReporter implements Reporter {
       case 'passed':
         break;
       default:
-        throw new NotImplementedError(`${result?.status} isn't supported`);
+        throw new NotImplementedError(`${result?.status as string} isn't supported`);
     }
-
-    // https://www.jetbrains.com/help/teamcity/2021.2/reporting-test-metadata.html#Reporting+additional+test+data
+    // https://www.jetbrains.com/help/teamcity/service-messages.html#Reporting+Additional+Test+Data
     // 'test-results' should be a part of the artifacts directory
-    const artifact = this.testMetadataArtifacts;
+    const artifact = this.#testMetadataArtifacts;
     for (const attachment of (result?.attachments || [])) {
       let value = '';
       if (attachment.path !== undefined) {
@@ -158,7 +166,7 @@ class TeamcityReporter implements Reporter {
       }
       let type!: string;
       switch (attachment.contentType) {
-        case 'image/png': // type = `type='image'`;
+        case 'image/png':
         case `application/zip`:
           type = `type='artifact'`;
           break;
@@ -178,20 +186,11 @@ class TeamcityReporter implements Reporter {
       `name='${name}'`,
       `duration='${result?.duration}'`
     ]);
-
-  }
-
-  logToTC(action: ActionType, parts: string[]) {
-    const textParts = [
-      `##teamcity[${action}`,
-      ...parts.filter(part => !!part),
-      `flowId='${this.flowId}']`
-    ];
-    console.log(textParts.join(' '));
   }
 
   // Escape text message to be compatible with Teamcity
-  static escape(text: string) {
+  // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
+  private static escape(text: string) {
     if (!text) {
       return '';
     }
