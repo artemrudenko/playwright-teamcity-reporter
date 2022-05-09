@@ -37,7 +37,3 @@ const config = {
   ...
 };
 ```
-
-### Limitations
-
-Please note that currently reporter isn't supporting test retries.
