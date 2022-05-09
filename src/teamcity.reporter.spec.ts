@@ -1,4 +1,4 @@
-import { FullConfig, TestError } from '@playwright/test';
+import { FullConfig, FullProject, TestError } from '@playwright/test';
 import { Suite, TestCase, TestResult } from '@playwright/test/reporter';
 
 import TeamcityReporter from './teamcity.reporter';
@@ -6,6 +6,8 @@ import TeamcityReporter from './teamcity.reporter';
 describe(`TeamcityReporter`, () => {
   let reporter: TeamcityReporter;
   let projectSuite: Suite;
+  let fileSuiteA: Suite;
+  let fileSuiteB: Suite;
   let testFromSuiteA: TestCase;
   let testFromSuiteB: TestCase;
 
@@ -41,7 +43,7 @@ describe(`TeamcityReporter`, () => {
   });
   const initTestData = () => {
     projectSuite = getSuite({ title: 'projectSuite' });
-    const fileSuiteA = getSuite({ title: 'fileSuiteA', parent: projectSuite });
+    fileSuiteA = getSuite({ title: 'fileSuiteA', parent: projectSuite });
     projectSuite.suites.push(fileSuiteA);
     const storySuiteA = getSuite({ title: 'storySuiteA', parent: fileSuiteA });
     fileSuiteA.suites.push(storySuiteA);
@@ -51,7 +53,7 @@ describe(`TeamcityReporter`, () => {
       parent: storySuiteA
     } as TestCase;
     storySuiteA.tests.push(testFromSuiteA);
-    const fileSuiteB = getSuite({ title: 'fileSuiteB', parent: projectSuite });
+    fileSuiteB = getSuite({ title: 'fileSuiteB', parent: projectSuite });
     projectSuite.suites.push(fileSuiteB);
     const storySuiteB = getSuite({ title: 'storySuiteB', parent: fileSuiteB });
     fileSuiteB.suites.push(storySuiteB);
@@ -86,7 +88,7 @@ describe(`TeamcityReporter`, () => {
       .toBeCalledWith(error);
   });
 
-  test(`should store suite on run begin`, () => {
+  test(`should store suite on begin`, () => {
     reporter.onBegin(config, projectSuite);
 
     expect(reporter)
@@ -96,25 +98,25 @@ describe(`TeamcityReporter`, () => {
       });
   });
 
-  test('should log configuration to console on run begin', () => {
+  test('should log configuration to console on begin', () => {
     reporter.onBegin(config, projectSuite);
 
     expect(console.log)
       .toHaveBeenCalledWith(expect.stringContaining(`message text='${JSON.stringify(config, undefined, 2)}'`));
   });
 
-  describe(`when tests executed with single worker`, () => {
-    test('should reports test results continuously with a single worker', () => {
+  describe('Modes::', () => {
+    test('should reports test results continuously when tests executed with single worker', () => {
       reporter.onBegin({ ...config, workers: 1 }, projectSuite);
       jest.clearAllMocks();
 
       reporter.onTestBegin(testFromSuiteA);
-      testFromSuiteA.results.push({ status: 'passed', startTime: new Date(), duration: 1 } as TestResult);
+      testFromSuiteA.results = [{ status: 'passed', startTime: new Date(), duration: 1 } as TestResult];
       expect(console.log)
         .not.toHaveBeenCalled();
 
       reporter.onTestBegin(testFromSuiteB);
-      testFromSuiteB.results.push({ status: 'passed', startTime: new Date(), duration: 2 } as TestResult);
+      testFromSuiteB.results = [{ status: 'passed', startTime: new Date(), duration: 2 } as TestResult];
 
       expect(console.log)
         .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
@@ -139,9 +141,7 @@ describe(`TeamcityReporter`, () => {
       expect(console.log)
         .toHaveBeenCalledTimes(8);
     });
-  });
 
-  describe(`when tests executed with multiple workers`, () => {
     test('should reports test results only at the end with multiple workers', () => {
       reporter.onBegin(config, projectSuite);
       expect(console.info)
@@ -150,12 +150,12 @@ describe(`TeamcityReporter`, () => {
       jest.clearAllMocks();
 
       reporter.onTestBegin(testFromSuiteA);
-      testFromSuiteA.results.push({ status: 'passed', startTime: new Date(), duration: 1 } as TestResult);
+      testFromSuiteA.results = [{ status: 'passed', startTime: new Date(), duration: 1 } as TestResult];
       expect(console.log)
         .not.toHaveBeenCalled();
 
       reporter.onTestBegin(testFromSuiteB);
-      testFromSuiteB.results.push({ status: 'passed', startTime: new Date(), duration: 2 } as TestResult);
+      testFromSuiteB.results = [{ status: 'passed', startTime: new Date(), duration: 2 } as TestResult];
       expect(console.log)
         .not.toHaveBeenCalled();
 
@@ -182,4 +182,41 @@ describe(`TeamcityReporter`, () => {
     });
   });
 
+  test(`should allow user to enable test retry`, () => {
+    const configWithRetries: FullConfig = {
+      ...config,
+      projects: [{ retries: 1 } as FullProject]
+    };
+    projectSuite.suites = [fileSuiteA];
+    testFromSuiteA.results = [
+      { status: 'failed', startTime: new Date(), duration: 1 } as TestResult,
+      { status: 'passed', startTime: new Date(), duration: 1 } as TestResult
+    ];
+
+    reporter.onBegin(configWithRetries, projectSuite);
+    expect(console.log)
+      .toHaveBeenLastCalledWith(expect.stringContaining(`testRetrySupport enabled='true'`));
+
+    jest.clearAllMocks();
+
+    reporter.onTestBegin(testFromSuiteA);
+    reporter.onEnd({ status: 'passed' });
+
+    expect(console.log)
+      .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
+    expect(console.log)
+      .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
+    expect(console.log)
+      .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFailed name='${testFromSuiteA.title}'`));
+    expect(console.log)
+      .toHaveBeenNthCalledWith(4, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
+    expect(console.log)
+      .toHaveBeenNthCalledWith(5, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
+    expect(console.log)
+      .toHaveBeenNthCalledWith(6, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
+    expect(console.log)
+      .toHaveBeenNthCalledWith(7, expect.stringContaining(`testSuiteFinished name='${testFromSuiteA.parent.title}'`));
+    expect(console.log)
+      .toHaveBeenCalledTimes(7);
+  });
 });

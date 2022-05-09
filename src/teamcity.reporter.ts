@@ -105,14 +105,7 @@ class TeamcityReporter implements Reporter {
 
   #logTestResults(test: TestCase) {
     const title = TeamcityReporter.escape(test.title);
-    if (process.env['PW_REPORT_All_RESULTS'] !== undefined) {
-      test.results.forEach((result, index) => this.#logResult(index === 0 ? title : `${title}_#${index}`, result, test.timeout));
-    } else {
-      const result = test.results.pop();
-      if (result) {
-        this.#logResult(title, result, test.timeout);
-      }
-    }
+    test.results.forEach((result: TestResult) => this.#logResult(title, result, test.timeout));
   }
 
   #logResult(name: string, result: TestResult, timeout: number) {
