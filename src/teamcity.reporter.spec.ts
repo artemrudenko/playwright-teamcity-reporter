@@ -2,6 +2,7 @@ import { FullConfig, FullProject, TestError } from '@playwright/test';
 import { Suite, TestCase, TestResult } from '@playwright/test/reporter';
 
 import TeamcityReporter from './teamcity.reporter';
+import { stringify } from './utils';
 
 describe(`TeamcityReporter`, () => {
   let reporter: TeamcityReporter;
@@ -102,7 +103,7 @@ describe(`TeamcityReporter`, () => {
     reporter.onBegin(config, projectSuite);
 
     expect(console.log)
-      .toHaveBeenCalledWith(expect.stringContaining(`message text='${JSON.stringify(config, undefined, 2)}'`));
+      .toHaveBeenCalledWith(expect.stringContaining(`message text='${stringify(config)}'`));
   });
 
   describe('Modes::', () => {

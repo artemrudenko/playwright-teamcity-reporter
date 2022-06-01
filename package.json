@@ -21,6 +21,7 @@
     "prepare": "npm run build",
     "prepublishOnly": "npm run lint",
     "preversion": "npm run lint",
+    "version": "auto-changelog -p && git add CHANGELOG.md",
     "test": "jest"
   },
   "keywords": [
@@ -36,6 +37,7 @@
     "@types/node": "^13.9.0",
     "@typescript-eslint/eslint-plugin": "^5.5.0",
     "@typescript-eslint/parser": "^5.5.0",
+    "auto-changelog": "^2.4.0",
     "eslint": "^8.3.0",
     "jest": "^27.4.3",
     "rimraf": "3.0.2",

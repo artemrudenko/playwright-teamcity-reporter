@@ -3,6 +3,7 @@ import * as path from 'path';
 
 import { NotImplementedError } from './errors';
 import { ActionType, ITeamcityReporterConfiguration, ReporterMode } from './teamcity.model';
+import { stringify } from './utils';
 
 // https://www.jetbrains.com/help/teamcity/service-messages.html
 class TeamcityReporter implements Reporter {
@@ -34,7 +35,7 @@ class TeamcityReporter implements Reporter {
       this.#mode = ReporterMode.Suite;
     }
 
-    this.logToTC(`message`, [`text='${JSON.stringify(this.#config, undefined, 2)}'`]);
+    this.logToTC(`message`, [`text='${stringify(this.#config)}'`]);
 
     // https://www.jetbrains.com/help/teamcity/service-messages.html#Enabling+Test+Retry
     if (this.#config.projects.some(project => project.retries > 0)) {
