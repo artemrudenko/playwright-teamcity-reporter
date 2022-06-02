@@ -11,6 +11,6 @@ const replacer = () => {
   };
 };
 
-export const stringify = (data: any, space = 2) => {
-  return JSON.stringify(data, replacer(), space);
+export const stringify = (data: any, space?: number) => {
+  return JSON.stringify(data, replacer(), space).replace(/"/g,"'");
 };

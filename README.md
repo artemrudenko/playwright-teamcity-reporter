@@ -32,7 +32,7 @@ You can also configure using playwright.config.js. To achieve that, add 'playwri
 const config = {
   ...
   reporter: [
-    ['playwright-teamcity-reporter', {'testMetadataArtifacts': 'test-results'}],
+    ['playwright-teamcity-reporter', {'testMetadataArtifacts': 'test-results', logConfig: false}],
   ],
   ...
 };

@@ -14,6 +14,7 @@ export type ActionType = 'message'
 
 export interface ITeamcityReporterConfiguration {
   testMetadataArtifacts?: string;
+  logConfig?: boolean;
 }
 
 export enum ReporterMode {

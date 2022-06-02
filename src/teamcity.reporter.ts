@@ -17,7 +17,7 @@ class TeamcityReporter implements Reporter {
   #mode!: ReporterMode;
   #lastRunningSuite: Suite | undefined;
 
-  constructor(configuration?: ITeamcityReporterConfiguration) {
+  constructor(private configuration?: ITeamcityReporterConfiguration) {
     this.#testMetadataArtifacts = configuration?.testMetadataArtifacts
       ?? process.env.TEAMCITY_ARTIFACTS_PW_RESULT
       ?? 'test-results';
@@ -35,7 +35,9 @@ class TeamcityReporter implements Reporter {
       this.#mode = ReporterMode.Suite;
     }
 
-    this.logToTC(`message`, [`text='${stringify(this.#config)}'`]);
+    if (this.configuration?.logConfig) {
+      this.logToTC(`message`, [`text='${stringify(this.#config)}'`]);
+    }
 
     // https://www.jetbrains.com/help/teamcity/service-messages.html#Enabling+Test+Retry
     if (this.#config.projects.some(project => project.retries > 0)) {
