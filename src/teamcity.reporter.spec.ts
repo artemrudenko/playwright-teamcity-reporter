@@ -103,7 +103,7 @@ describe(`TeamcityReporter`, () => {
       reporter.onBegin(config, projectSuite);
 
       expect(console.log)
-        .not.toHaveBeenCalledWith(expect.stringContaining(`message text='${stringify(config)}'`));
+        .not.toHaveBeenCalledWith(expect.stringContaining(`message text='${TeamcityReporter.escape(stringify(config))}'`));
     });
 
     describe('Modes::', () => {
@@ -232,7 +232,7 @@ describe(`TeamcityReporter`, () => {
       reporter.onBegin(config, projectSuite);
 
       expect(console.log)
-        .toHaveBeenCalledWith(expect.stringContaining(`message text='${stringify(config)}'`));
+        .toHaveBeenCalledWith(expect.stringContaining(`message text='${TeamcityReporter.escape(stringify(config))}'`));
     });
   });
 });

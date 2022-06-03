@@ -36,7 +36,7 @@ class TeamcityReporter implements Reporter {
     }
 
     if (this.configuration?.logConfig) {
-      this.logToTC(`message`, [`text='${stringify(this.#config)}'`]);
+      this.logToTC(`message`, [`text='${TeamcityReporter.escape(stringify(this.#config))}'`]);
     }
 
     // https://www.jetbrains.com/help/teamcity/service-messages.html#Enabling+Test+Retry
@@ -91,6 +91,28 @@ class TeamcityReporter implements Reporter {
       `flowId='${this.flowId}']`
     ];
     console.log(textParts.join(' '));
+  }
+
+  // Escape text message to be compatible with Teamcity
+  // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
+  public static escape(text: string) {
+    if (!text) {
+      return '';
+    }
+    /* eslint-disable no-control-regex */
+    return text
+      .toString()
+      .replace(/\x1B.*?m/g, "")
+      .replace(/\|/g, "||")
+      .replace(/\n/g, "|n")
+      .replace(/\r/g, "|r")
+      .replace(/\[/g, "|[")
+      .replace(/\]/g, "|]")
+      .replace(/\u0085/g, "|x")
+      .replace(/\u2028/g, "|l")
+      .replace(/\u2029/g, "|p")
+      .replace(/'/g, "|'");
+    /* eslint-enable no-control-regex */
   }
 
   #logSuiteResults(suite: Suite): void {
@@ -182,28 +204,6 @@ class TeamcityReporter implements Reporter {
       `name='${name}'`,
       `duration='${result?.duration}'`
     ]);
-  }
-
-  // Escape text message to be compatible with Teamcity
-  // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
-  private static escape(text: string) {
-    if (!text) {
-      return '';
-    }
-    /* eslint-disable no-control-regex */
-    return text
-      .toString()
-      .replace(/\x1B.*?m/g, "")
-      .replace(/\|/g, "||")
-      .replace(/\n/g, "|n")
-      .replace(/\r/g, "|r")
-      .replace(/\[/g, "|[")
-      .replace(/\]/g, "|]")
-      .replace(/\u0085/g, "|x")
-      .replace(/\u2028/g, "|l")
-      .replace(/\u2029/g, "|p")
-      .replace(/'/g, "|'");
-    /* eslint-enable no-control-regex */
   }
 }
 
