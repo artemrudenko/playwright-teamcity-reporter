@@ -30,7 +30,7 @@
     "reporter"
   ],
   "author": "artemr2009@gmail.com",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@playwright/test": "^1.17.1",
     "@types/jest": "^27.0.3",
