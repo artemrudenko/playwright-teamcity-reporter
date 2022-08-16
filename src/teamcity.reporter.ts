@@ -5,6 +5,27 @@ import { NotImplementedError } from './errors';
 import { ActionType, ITeamcityReporterConfiguration, ReporterMode } from './teamcity.model';
 import { stringify } from './utils';
 
+// Escape text message to be compatible with Teamcity
+// https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
+export function escape(text: string): string {
+  if (!text) {
+    return '';
+  }
+  /* eslint-disable no-control-regex */
+  return text
+    .replace(/\x1B.*?m/g, "")
+    .replace(/\|/g, "||")
+    .replace(/\n/g, "|n")
+    .replace(/\r/g, "|r")
+    .replace(/\[/g, "|[")
+    .replace(/\]/g, "|]")
+    .replace(/\u0085/g, "|x")
+    .replace(/\u2028/g, "|l")
+    .replace(/\u2029/g, "|p")
+    .replace(/'/g, "|'");
+  /* eslint-enable no-control-regex */
+}
+
 // https://www.jetbrains.com/help/teamcity/service-messages.html
 class TeamcityReporter implements Reporter {
   static readonly #TZ_OFFSET = (new Date()).getTimezoneOffset() * 60000; // offset in milliseconds
@@ -34,7 +55,7 @@ class TeamcityReporter implements Reporter {
     }
 
     if (this.configuration?.logConfig) {
-      this.logToTC(`message`, [`text='${TeamcityReporter.escape(stringify(config))}'`]);
+      this.logToTC(`message`, [`text='${escape(stringify(config))}'`]);
     }
 
     // https://www.jetbrains.com/help/teamcity/service-messages.html#Enabling+Test+Retry
@@ -91,43 +112,21 @@ class TeamcityReporter implements Reporter {
     console.log(textParts.join(' '));
   }
 
-  // Escape text message to be compatible with Teamcity
-  // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
-  public static escape(text: string) {
-    if (!text) {
-      return '';
-    }
-    /* eslint-disable no-control-regex */
-    return text
-      .toString()
-      .replace(/\x1B.*?m/g, "")
-      .replace(/\|/g, "||")
-      .replace(/\n/g, "|n")
-      .replace(/\r/g, "|r")
-      .replace(/\[/g, "|[")
-      .replace(/\]/g, "|]")
-      .replace(/\u0085/g, "|x")
-      .replace(/\u2028/g, "|l")
-      .replace(/\u2029/g, "|p")
-      .replace(/'/g, "|'");
-    /* eslint-enable no-control-regex */
-  }
-
   #logSuiteResults(suite: Suite): void {
     this.logToTC(`testSuiteStarted`, [
-      `name='${TeamcityReporter.escape(suite.title)}'`
+      `name='${escape(suite.title)}'`
     ]);
 
     suite.tests.forEach((testCase: TestCase) => this.#logTestResults(testCase));
     suite.suites.forEach((suite: Suite) => this.#logSuiteResults(suite));
 
     this.logToTC(`testSuiteFinished`, [
-      `name='${TeamcityReporter.escape(suite.title)}'`
+      `name='${escape(suite.title)}'`
     ]);
   }
 
   #logTestResults(test: TestCase) {
-    const title = TeamcityReporter.escape(test.title);
+    const title = escape(test.title);
     test.results.forEach((result: TestResult) => this.#logResult(title, result, test.timeout));
   }
 
@@ -152,14 +151,14 @@ class TeamcityReporter implements Reporter {
         this.logToTC(`testFailed`, [
           `name='${name}'`,
           `message='Timeout of ${timeout}ms exceeded.'`,
-          `details='${TeamcityReporter.escape(result?.error?.stack || '')}'`
+          `details='${escape(result?.error?.stack || '')}'`
         ]);
         break;
       case 'failed':
         this.logToTC(`testFailed`, [
           `name='${name}'`,
-          `message='${TeamcityReporter.escape(result?.error?.message || '')}'`,
-          `details='${TeamcityReporter.escape(result?.error?.stack || '')}'`
+          `message='${escape(result?.error?.message || '')}'`,
+          `details='${escape(result?.error?.stack || '')}'`
         ]);
         break;
       case 'passed':

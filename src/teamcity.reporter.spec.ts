@@ -1,7 +1,7 @@
 import { FullConfig, FullProject, TestError } from '@playwright/test';
 import { Suite, TestCase, TestResult } from '@playwright/test/reporter';
 
-import TeamcityReporter from './teamcity.reporter';
+import TeamcityReporter, { escape } from './teamcity.reporter';
 import { stringify } from './utils';
 
 function titlePath(this: TestCase | Suite) {
@@ -113,7 +113,7 @@ describe(`TeamcityReporter`, () => {
       reporter.onBegin(config, projectSuite);
 
       expect(console.log)
-        .not.toHaveBeenCalledWith(expect.stringContaining(`message text='${TeamcityReporter.escape(stringify(config))}'`));
+        .not.toHaveBeenCalledWith(expect.stringContaining(`message text='${escape(stringify(config))}'`));
     });
 
     describe('Modes::', () => {
@@ -242,7 +242,7 @@ describe(`TeamcityReporter`, () => {
       reporter.onBegin(config, projectSuite);
 
       expect(console.log)
-        .toHaveBeenCalledWith(expect.stringContaining(`message text='${TeamcityReporter.escape(stringify(config))}'`));
+        .toHaveBeenCalledWith(expect.stringContaining(`message text='${escape(stringify(config))}'`));
     });
   });
 });
