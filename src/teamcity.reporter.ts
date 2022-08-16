@@ -34,6 +34,11 @@ function writeServiceMessage(messageName: ActionType, parts: Record<string, stri
   console.log(`##teamcity[${messageName}${textParts}]`);
 }
 
+function testName(test: TestCase) {
+  // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Interpreting+Test+Names
+  return test.titlePath().filter(title => title).join(': ');
+}
+
 // https://www.jetbrains.com/help/teamcity/service-messages.html
 class TeamcityReporter implements Reporter {
   static readonly #TZ_OFFSET = (new Date()).getTimezoneOffset() * 60000; // offset in milliseconds
@@ -138,36 +143,31 @@ class TeamcityReporter implements Reporter {
   }
 
   #logResult(test: TestCase, result: TestResult) {
-    const name = escape(test.title);
     const localISOTime = new Date(result?.startTime.getTime() - TeamcityReporter.#TZ_OFFSET)
       .toISOString()
       .slice(0, -1);
-    this.logToTC(`testStarted`, [
-      `name='${name}'`,
-      `timestamp='${localISOTime}'`,
-      `captureStandardOutput='true'`
-    ]);
+    this.#writeTestFlow(`testStarted`, test, {
+      timestamp: localISOTime,
+      captureStandardOutput: `true`,
+    });
 
     switch (result?.status) {
       case 'skipped':
-        this.logToTC(`testIgnored`, [
-          `name='${name}'`,
-          `message='skipped'`
-        ]);
+        this.#writeTestFlow(`testIgnored`, test, {
+          message: `skipped`,
+        });
         break;
       case 'timedOut':
-        this.logToTC(`testFailed`, [
-          `name='${name}'`,
-          `message='Timeout of ${test.timeout}ms exceeded.'`,
-          `details='${escape(result?.error?.stack || '')}'`
-        ]);
+        this.#writeTestFlow(`testFailed`, test, {
+          message: `Timeout of ${test.timeout}ms exceeded.`,
+          details: `${result.error?.stack ?? ''}`,
+        });
         break;
       case 'failed':
-        this.logToTC(`testFailed`, [
-          `name='${name}'`,
-          `message='${escape(result?.error?.message || '')}'`,
-          `details='${escape(result?.error?.stack || '')}'`
-        ]);
+        this.#writeTestFlow(`testFailed`, test, {
+          message: `${result.error?.message ?? ''}`,
+          details: `${result.error?.stack ?? ''}`,
+        });
         break;
       case 'passed':
         break;
@@ -179,10 +179,7 @@ class TeamcityReporter implements Reporter {
       this.#logAttachment(test, attachment);
     }
 
-    this.logToTC(`testFinished`, [
-      `name='${name}'`,
-      `duration='${result?.duration}'`
-    ]);
+    this.#writeTestFlow(`testFinished`, test, { duration: `${result.duration}` });
   }
 
   #logAttachment(test: TestCase, attachment: TestResult['attachments'][number]): void {
@@ -212,9 +209,17 @@ class TeamcityReporter implements Reporter {
 
     writeServiceMessage(`testMetadata`, {
       type,
-      testName: test.title,
+      testName: testName(test),
       name: attachment.name,
       value,
+      flowId: this.flowId,
+    });
+  }
+
+  #writeTestFlow(messageName: ActionType, test: TestCase, parts: Record<string, string> = {}): void {
+    writeServiceMessage(messageName, {
+      name: testName(test),
+      ...parts,
       flowId: this.flowId,
     });
   }
