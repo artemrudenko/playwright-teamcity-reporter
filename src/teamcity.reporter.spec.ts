@@ -4,6 +4,12 @@ import { Suite, TestCase, TestResult } from '@playwright/test/reporter';
 import TeamcityReporter from './teamcity.reporter';
 import { stringify } from './utils';
 
+function titlePath(this: TestCase | Suite) {
+  return this.parent
+    ? [...this.parent.titlePath(), this.title]
+    : [this.title];
+}
+
 describe(`TeamcityReporter`, () => {
   let reporter: TeamcityReporter;
   let projectSuite: Suite;
@@ -37,13 +43,15 @@ describe(`TeamcityReporter`, () => {
     suites: [],
     tests: [],
     title: '',
-    titlePath: jest.fn(),
+    titlePath: titlePath,
     allTests: jest.fn(),
     project: jest.fn(),
     ...suite
   });
   const initTestData = () => {
-    projectSuite = getSuite({ title: 'projectSuite' });
+    // https://playwright.dev/docs/api/class-suite#suite-title
+    const rootSuite = getSuite({});
+    projectSuite = getSuite({ title: 'projectSuite', parent: rootSuite });
     fileSuiteA = getSuite({ title: 'fileSuiteA', parent: projectSuite });
     projectSuite.suites.push(fileSuiteA);
     const storySuiteA = getSuite({ title: 'storySuiteA', parent: fileSuiteA });
@@ -51,7 +59,8 @@ describe(`TeamcityReporter`, () => {
     testFromSuiteA = {
       title: 'testFromSuiteA',
       results: [{ status: 'passed', startTime: new Date(), duration: 1 }],
-      parent: storySuiteA
+      parent: storySuiteA,
+      titlePath,
     } as TestCase;
     storySuiteA.tests.push(testFromSuiteA);
     fileSuiteB = getSuite({ title: 'fileSuiteB', parent: projectSuite });
@@ -61,7 +70,8 @@ describe(`TeamcityReporter`, () => {
     testFromSuiteB = {
       title: 'testFromSuiteB',
       results: [{ status: 'passed', startTime: new Date(), duration: 2 }],
-      parent: storySuiteB
+      parent: storySuiteB,
+      titlePath,
     } as TestCase;
     storySuiteB.tests.push(testFromSuiteB);
   };
