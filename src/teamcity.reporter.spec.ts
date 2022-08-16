@@ -1,7 +1,7 @@
 import { FullConfig, FullProject, TestError } from '@playwright/test';
 import { Suite, TestCase, TestResult } from '@playwright/test/reporter';
 
-import TeamcityReporter, { escape } from './teamcity.reporter';
+import TeamcityReporter, { escape, testName } from './teamcity.reporter';
 import { stringify } from './utils';
 
 function titlePath(this: TestCase | Suite) {
@@ -132,9 +132,9 @@ describe(`TeamcityReporter`, () => {
         expect(console.log)
           .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
         expect(console.log)
-          .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
+          .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testName(testFromSuiteA)}'`));
         expect(console.log)
-          .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
+          .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
         expect(console.log)
           .toHaveBeenNthCalledWith(4, expect.stringContaining(`testSuiteFinished name='${testFromSuiteA.parent.title}'`));
         expect(console.log)
@@ -144,9 +144,9 @@ describe(`TeamcityReporter`, () => {
         expect(console.log)
           .toHaveBeenNthCalledWith(5, expect.stringContaining(`testSuiteStarted name='${testFromSuiteB.parent.title}'`));
         expect(console.log)
-          .toHaveBeenNthCalledWith(6, expect.stringContaining(`testStarted name='${testFromSuiteB.title}'`));
+          .toHaveBeenNthCalledWith(6, expect.stringContaining(`testStarted name='${testName(testFromSuiteB)}'`));
         expect(console.log)
-          .toHaveBeenNthCalledWith(7, expect.stringContaining(`testFinished name='${testFromSuiteB.title}'`));
+          .toHaveBeenNthCalledWith(7, expect.stringContaining(`testFinished name='${testName(testFromSuiteB)}'`));
         expect(console.log)
           .toHaveBeenNthCalledWith(8, expect.stringContaining(`testSuiteFinished name='${testFromSuiteB.parent.title}'`));
         expect(console.log)
@@ -175,17 +175,17 @@ describe(`TeamcityReporter`, () => {
         expect(console.log)
           .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
         expect(console.log)
-          .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
+          .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testName(testFromSuiteA)}'`));
         expect(console.log)
-          .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
+          .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
         expect(console.log)
           .toHaveBeenNthCalledWith(4, expect.stringContaining(`testSuiteFinished name='${testFromSuiteA.parent.title}'`));
         expect(console.log)
           .toHaveBeenNthCalledWith(5, expect.stringContaining(`testSuiteStarted name='${testFromSuiteB.parent.title}'`));
         expect(console.log)
-          .toHaveBeenNthCalledWith(6, expect.stringContaining(`testStarted name='${testFromSuiteB.title}'`));
+          .toHaveBeenNthCalledWith(6, expect.stringContaining(`testStarted name='${testName(testFromSuiteB)}'`));
         expect(console.log)
-          .toHaveBeenNthCalledWith(7, expect.stringContaining(`testFinished name='${testFromSuiteB.title}'`));
+          .toHaveBeenNthCalledWith(7, expect.stringContaining(`testFinished name='${testName(testFromSuiteB)}'`));
         expect(console.log)
           .toHaveBeenNthCalledWith(8, expect.stringContaining(`testSuiteFinished name='${testFromSuiteB.parent.title}'`));
         expect(console.log)
@@ -216,15 +216,15 @@ describe(`TeamcityReporter`, () => {
       expect(console.log)
         .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
+        .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testName(testFromSuiteA)}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFailed name='${testFromSuiteA.title}'`));
+        .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFailed name='${testName(testFromSuiteA)}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(4, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
+        .toHaveBeenNthCalledWith(4, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(5, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
+        .toHaveBeenNthCalledWith(5, expect.stringContaining(`testStarted name='${testName(testFromSuiteA)}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(6, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
+        .toHaveBeenNthCalledWith(6, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
       expect(console.log)
         .toHaveBeenNthCalledWith(7, expect.stringContaining(`testSuiteFinished name='${testFromSuiteA.parent.title}'`));
       expect(console.log)

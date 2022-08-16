@@ -34,7 +34,7 @@ function writeServiceMessage(messageName: ActionType, parts: Record<string, stri
   console.log(`##teamcity[${messageName}${textParts}]`);
 }
 
-function testName(test: TestCase) {
+export function testName(test: TestCase) {
   // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Interpreting+Test+Names
   return test.titlePath().filter(title => title).join(': ');
 }
