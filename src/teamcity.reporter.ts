@@ -85,59 +85,15 @@ class TeamcityReporter implements Reporter {
   }
 
   onTestBegin(test: TestCase): void {
-    if (this.#mode === ReporterMode.Test) {
-      let parentSuite = test.parent;
-      while (parentSuite?.parent?.parent !== this.rootSuite && parentSuite.parent) {
-        parentSuite = parentSuite.parent;
-      }
-      if (parentSuite !== this.#lastRunningSuite) {
-        if (this.#lastRunningSuite !== undefined) {
-          this.#logSuiteResults(this.#lastRunningSuite);
-        }
-        this.#lastRunningSuite = parentSuite;
-      }
-    }
+    this.#writeTestFlow(`testStarted`, test);
   }
 
   onEnd(result: FullResult) {
-    switch (this.#mode) {
-      case ReporterMode.Test:
-        if (this.#lastRunningSuite !== undefined) {
-          this.#logSuiteResults(this.#lastRunningSuite);
-        }
-        break;
-      case ReporterMode.Suite:
-      default:
-        // @TODO try this
-        // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Importing+XML+Reports
-        // console.log(`##teamcity[importData type='junit' path='test-results.xml']`);
-        this.rootSuite.suites
-          .flatMap(fileSuite => fileSuite.suites)
-          .forEach(storySuite => this.#logSuiteResults(storySuite));
-        break;
-    }
     console.info(`Finished the run: ${result.status}`);
   }
 
-  #logSuiteResults(suite: Suite): void {
-    suite.tests.forEach((testCase: TestCase) => this.#logTestResults(testCase));
-    suite.suites.forEach((suite: Suite) => this.#logSuiteResults(suite));
-  }
-
-  #logTestResults(test: TestCase) {
-    test.results.forEach((result: TestResult) => this.#logResult(test, result));
-  }
-
-  #logResult(test: TestCase, result: TestResult) {
-    const localISOTime = new Date(result?.startTime.getTime() - TeamcityReporter.#TZ_OFFSET)
-      .toISOString()
-      .slice(0, -1);
-    this.#writeTestFlow(`testStarted`, test, {
-      timestamp: localISOTime,
-      captureStandardOutput: `true`,
-    });
-
-    switch (result?.status) {
+  onTestEnd(test: TestCase, result: TestResult): void {
+    switch (result.status) {
       case 'skipped':
         this.#writeTestFlow(`testIgnored`, test, {
           message: `skipped`,
