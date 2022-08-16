@@ -174,41 +174,49 @@ class TeamcityReporter implements Reporter {
       default:
         throw new NotImplementedError(`${result?.status as string} isn't supported`);
     }
-    // https://www.jetbrains.com/help/teamcity/service-messages.html#Reporting+Additional+Test+Data
-    // 'test-results' should be a part of the artifacts directory
-    const artifact = this.#testMetadataArtifacts;
-    for (const attachment of (result?.attachments || [])) {
-      let value = '';
-      if (attachment.path !== undefined) {
-        value = attachment.path;
-        value = value.split(path.sep).join(path.posix.sep);
-        value = value.slice(value.indexOf('test-results') + 13);
-        value = `${artifact}${artifact.endsWith('.zip') ? '!' : ''}/${value}`;
-      } else if (attachment?.body !== undefined) {
-        value = attachment?.body?.toString('base64');
-      }
-      let type!: string;
-      switch (attachment.contentType) {
-        case 'image/png':
-        case `application/zip`:
-          type = `type='artifact'`;
-          break;
-        case `application/json`:
-        default:
-          type = `type='text'`;
-      }
-      this.logToTC(`testMetadata`, [
-        type,
-        `testName='${name}'`,
-        `name='${attachment.name}'`,
-        `value='${value}'`
-      ]);
+
+    for (const attachment of result.attachments || []) {
+      this.#logAttachment(test, attachment);
     }
 
     this.logToTC(`testFinished`, [
       `name='${name}'`,
       `duration='${result?.duration}'`
     ]);
+  }
+
+  #logAttachment(test: TestCase, attachment: TestResult['attachments'][number]): void {
+    // https://www.jetbrains.com/help/teamcity/service-messages.html#Reporting+Additional+Test+Data
+    // 'test-results' should be a part of the artifacts directory
+    let value = '';
+    if (attachment.path !== undefined) {
+      const artifact = this.#testMetadataArtifacts;
+      value = attachment.path;
+      value = value.split(path.sep).join(path.posix.sep);
+      value = value.slice(value.indexOf('test-results') + 13);
+      value = `${artifact}${artifact.endsWith('.zip') ? '!' : ''}/${value}`;
+    } else if (attachment.body !== undefined) {
+      value = attachment.body.toString('base64');
+    }
+
+    let type;
+    switch (attachment.contentType) {
+      case 'image/png':
+      case `application/zip`:
+        type = `type='artifact'`;
+        break;
+      case `application/json`:
+      default:
+        type = `type='text'`;
+    }
+
+    writeServiceMessage(`testMetadata`, {
+      type,
+      testName: test.title,
+      name: attachment.name,
+      value,
+      flowId: this.flowId,
+    });
   }
 }
 
