@@ -99,25 +99,15 @@ describe(`TeamcityReporter`, () => {
         .toBeCalledWith(error);
     });
 
-    test(`should store suite on begin`, () => {
-      reporter.onBegin(config, projectSuite);
-
-      expect(reporter)
-        .toMatchObject({
-          flowId: expect.any(String),
-          rootSuite: projectSuite,
-        });
-    });
-
     test('should not log configuration to console on begin by default', () => {
-      reporter.onBegin(config, projectSuite);
+      reporter.onBegin(config);
 
       expect(console.log)
         .not.toHaveBeenCalledWith(expect.stringContaining(`message text='${escape(stringify(config))}'`));
     });
 
     test('should reports test results continuously', () => {
-      reporter.onBegin({ ...config, workers: 2 }, projectSuite);
+      reporter.onBegin({ ...config, workers: 2 });
 
       jest.clearAllMocks();
       reporter.onTestBegin(testFromSuiteA);
@@ -166,7 +156,7 @@ describe(`TeamcityReporter`, () => {
         { status: 'passed', startTime: new Date(), duration: 1 } as TestResult
       ];
 
-      reporter.onBegin(configWithRetries, projectSuite);
+      reporter.onBegin(configWithRetries);
       expect(console.log)
         .toHaveBeenLastCalledWith(expect.stringContaining(`testRetrySupport enabled='true'`));
 
@@ -207,7 +197,7 @@ describe(`TeamcityReporter`, () => {
     });
 
     test('should log configuration to console on begin if requested', () => {
-      reporter.onBegin(config, projectSuite);
+      reporter.onBegin(config);
 
       expect(console.log)
         .toHaveBeenCalledWith(expect.stringContaining(`message text='${escape(stringify(config))}'`));

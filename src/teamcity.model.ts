@@ -14,8 +14,3 @@ export interface ITeamcityReporterConfiguration {
   testMetadataArtifacts?: string;
   logConfig?: boolean;
 }
-
-export enum ReporterMode {
-  Test,
-  Suite
-}

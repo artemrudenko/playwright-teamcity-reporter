@@ -1,9 +1,9 @@
-import { Reporter, Suite, FullConfig, TestCase, TestError, TestResult, FullResult } from '@playwright/test/reporter';
+import { Reporter, FullConfig, TestCase, TestError, TestResult, FullResult } from '@playwright/test/reporter';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 
 import { NotImplementedError } from './errors';
-import { ActionType, ITeamcityReporterConfiguration, ReporterMode } from './teamcity.model';
+import { ActionType, ITeamcityReporterConfiguration } from './teamcity.model';
 import { stringify } from './utils';
 
 // Escape text message to be compatible with Teamcity
@@ -42,14 +42,7 @@ export function testName(test: TestCase) {
 
 // https://www.jetbrains.com/help/teamcity/service-messages.html
 class TeamcityReporter implements Reporter {
-  static readonly #TZ_OFFSET = (new Date()).getTimezoneOffset() * 60000; // offset in milliseconds
   readonly #testMetadataArtifacts: string;
-
-  flowId!: string;
-  rootSuite!: Suite;
-
-  #mode!: ReporterMode;
-  #lastRunningSuite: Suite | undefined;
 
   readonly #flowIds = new Map<TestCase, string>();
 
@@ -59,17 +52,7 @@ class TeamcityReporter implements Reporter {
       ?? 'test-results';
   }
 
-  onBegin(config: FullConfig, suite: Suite) {
-    this.flowId = process.pid.toString();
-    this.rootSuite = suite;
-
-    if (config.workers === 1) {
-      this.#mode = ReporterMode.Test;
-    } else {
-      console.info('Playwright is running suites in multiple workers. The results will be reported after all of them finish.');
-      this.#mode = ReporterMode.Suite;
-    }
-
+  onBegin(config: FullConfig): void {
     if (this.configuration?.logConfig) {
       writeServiceMessage(`message`, { text: stringify(config) });
     }
