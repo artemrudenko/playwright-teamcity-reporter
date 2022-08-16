@@ -52,6 +52,10 @@ class TeamcityReporter implements Reporter {
       ?? 'test-results';
   }
 
+  printsToStdio(): boolean {
+    return true;
+  }
+
   onBegin(config: FullConfig): void {
     if (this.configuration?.logConfig) {
       writeServiceMessage(`message`, { text: stringify(config) });
@@ -69,6 +73,22 @@ class TeamcityReporter implements Reporter {
 
   onTestBegin(test: TestCase): void {
     this.#writeTestFlow(`testStarted`, test);
+  }
+
+  onStdOut(chunk: string | Buffer, test?: TestCase): void {
+    if (test) {
+      this.#writeTestFlow(`testStdOut`, test, { out: chunk.toString() });
+    } else {
+      console.log(chunk);
+    }
+  }
+
+  onStdErr(chunk: string | Buffer, test?: TestCase): void {
+    if (test) {
+      this.#writeTestFlow(`testStdErr`, test, { out: chunk.toString() });
+    } else {
+      console.error(chunk);
+    }
   }
 
   onEnd(result: FullResult) {
