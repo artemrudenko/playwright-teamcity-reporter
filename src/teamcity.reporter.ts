@@ -119,26 +119,9 @@ class TeamcityReporter implements Reporter {
     console.info(`Finished the run: ${result.status}`);
   }
 
-  logToTC(action: ActionType, parts: string[]) {
-    const textParts = [
-      `##teamcity[${action}`,
-      ...parts.filter(part => !!part),
-      `flowId='${this.flowId}']`
-    ];
-    console.log(textParts.join(' '));
-  }
-
   #logSuiteResults(suite: Suite): void {
-    this.logToTC(`testSuiteStarted`, [
-      `name='${escape(suite.title)}'`
-    ]);
-
     suite.tests.forEach((testCase: TestCase) => this.#logTestResults(testCase));
     suite.suites.forEach((suite: Suite) => this.#logSuiteResults(suite));
-
-    this.logToTC(`testSuiteFinished`, [
-      `name='${escape(suite.title)}'`
-    ]);
   }
 
   #logTestResults(test: TestCase) {

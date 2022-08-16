@@ -1,4 +1,3 @@
-export type SuiteStatesType = 'testSuiteStarted' | 'testSuiteFinished';
 export type TestStatesType = 'testStarted'
   | 'testMetadata'
   | 'testFinished'
@@ -8,7 +7,6 @@ export type StdType = 'testStdOut' | 'testStdErr';
 
 export type ActionType = 'message'
   | 'testRetrySupport'
-  | SuiteStatesType
   | TestStatesType
   | StdType;
 
