@@ -13,7 +13,6 @@ class TeamcityReporter implements Reporter {
   flowId!: string;
   rootSuite!: Suite;
 
-  #config!: FullConfig;
   #mode!: ReporterMode;
   #lastRunningSuite: Suite | undefined;
 
@@ -25,7 +24,6 @@ class TeamcityReporter implements Reporter {
 
   onBegin(config: FullConfig, suite: Suite) {
     this.flowId = process.pid.toString();
-    this.#config = config;
     this.rootSuite = suite;
 
     if (config.workers === 1) {
@@ -36,11 +34,11 @@ class TeamcityReporter implements Reporter {
     }
 
     if (this.configuration?.logConfig) {
-      this.logToTC(`message`, [`text='${TeamcityReporter.escape(stringify(this.#config))}'`]);
+      this.logToTC(`message`, [`text='${TeamcityReporter.escape(stringify(config))}'`]);
     }
 
     // https://www.jetbrains.com/help/teamcity/service-messages.html#Enabling+Test+Retry
-    if (this.#config.projects.some(project => project.retries > 0)) {
+    if (config.projects.some(project => project.retries > 0)) {
       this.logToTC(`testRetrySupport`, [`enabled='true'`]);
     }
   }
