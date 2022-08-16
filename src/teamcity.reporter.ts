@@ -1,4 +1,5 @@
 import { Reporter, Suite, FullConfig, TestCase, TestError, TestResult, FullResult } from '@playwright/test/reporter';
+import { randomUUID } from 'crypto';
 import * as path from 'path';
 
 import { NotImplementedError } from './errors';
@@ -49,6 +50,8 @@ class TeamcityReporter implements Reporter {
 
   #mode!: ReporterMode;
   #lastRunningSuite: Suite | undefined;
+
+  readonly #flowIds = new Map<TestCase, string>();
 
   constructor(private configuration?: ITeamcityReporterConfiguration) {
     this.#testMetadataArtifacts = configuration?.testMetadataArtifacts
@@ -212,7 +215,7 @@ class TeamcityReporter implements Reporter {
       testName: testName(test),
       name: attachment.name,
       value,
-      flowId: this.flowId,
+      flowId: this.#getFlowId(test),
     });
   }
 
@@ -220,8 +223,18 @@ class TeamcityReporter implements Reporter {
     writeServiceMessage(messageName, {
       name: testName(test),
       ...parts,
-      flowId: this.flowId,
+      flowId: this.#getFlowId(test),
     });
+  }
+
+  #getFlowId(test: TestCase): string {
+    let flowId = this.#flowIds.get(test);
+    if (flowId === undefined) {
+      flowId = randomUUID();
+      this.#flowIds.set(test, flowId);
+    }
+
+    return flowId;
   }
 }
 
