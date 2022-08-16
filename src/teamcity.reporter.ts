@@ -67,10 +67,6 @@ class TeamcityReporter implements Reporter {
     }
   }
 
-  onError(error: TestError) {
-    console.error(error);
-  }
-
   onTestBegin(test: TestCase): void {
     this.#writeTestFlow(`testStarted`, test);
   }
@@ -89,10 +85,6 @@ class TeamcityReporter implements Reporter {
     } else {
       console.error(chunk);
     }
-  }
-
-  onEnd(result: FullResult) {
-    console.info(`Finished the run: ${result.status}`);
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {
@@ -125,6 +117,14 @@ class TeamcityReporter implements Reporter {
     }
 
     this.#writeTestFlow(`testFinished`, test, { duration: `${result.duration}` });
+  }
+
+  onError(error: TestError): void {
+    console.error(error);
+  }
+
+  onEnd(result: FullResult): void {
+    console.info(`Finished the run: ${result.status}`);
   }
 
   #logAttachment(test: TestCase, attachment: TestResult['attachments'][number]): void {
