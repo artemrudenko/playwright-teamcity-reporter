@@ -26,6 +26,14 @@ export function escape(text: string): string {
   /* eslint-enable no-control-regex */
 }
 
+function writeServiceMessage(messageName: ActionType, parts: Record<string, string>): void {
+  const textParts = Object.entries(parts)
+    .map(([key, value]) => ` ${key}='${escape(value)}'`)
+    .join('');
+
+  console.log(`##teamcity[${messageName}${textParts}]`);
+}
+
 // https://www.jetbrains.com/help/teamcity/service-messages.html
 class TeamcityReporter implements Reporter {
   static readonly #TZ_OFFSET = (new Date()).getTimezoneOffset() * 60000; // offset in milliseconds
@@ -55,12 +63,12 @@ class TeamcityReporter implements Reporter {
     }
 
     if (this.configuration?.logConfig) {
-      this.logToTC(`message`, [`text='${escape(stringify(config))}'`]);
+      writeServiceMessage(`message`, { text: stringify(config) });
     }
 
     // https://www.jetbrains.com/help/teamcity/service-messages.html#Enabling+Test+Retry
     if (config.projects.some(project => project.retries > 0)) {
-      this.logToTC(`testRetrySupport`, [`enabled='true'`]);
+      writeServiceMessage(`testRetrySupport`, { enabled: `true` });
     }
   }
 
