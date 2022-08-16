@@ -1,8 +1,14 @@
 import { FullConfig, FullProject, TestError } from '@playwright/test';
 import { Suite, TestCase, TestResult } from '@playwright/test/reporter';
 
-import TeamcityReporter from './teamcity.reporter';
+import TeamcityReporter, { escape, testName } from './teamcity.reporter';
 import { stringify } from './utils';
+
+function titlePath(this: TestCase | Suite) {
+  return this.parent
+    ? [...this.parent.titlePath(), this.title]
+    : [this.title];
+}
 
 describe(`TeamcityReporter`, () => {
   let reporter: TeamcityReporter;
@@ -37,13 +43,15 @@ describe(`TeamcityReporter`, () => {
     suites: [],
     tests: [],
     title: '',
-    titlePath: jest.fn(),
+    titlePath: titlePath,
     allTests: jest.fn(),
     project: jest.fn(),
     ...suite
   });
   const initTestData = () => {
-    projectSuite = getSuite({ title: 'projectSuite' });
+    // https://playwright.dev/docs/api/class-suite#suite-title
+    const rootSuite = getSuite({});
+    projectSuite = getSuite({ title: 'projectSuite', parent: rootSuite });
     fileSuiteA = getSuite({ title: 'fileSuiteA', parent: projectSuite });
     projectSuite.suites.push(fileSuiteA);
     const storySuiteA = getSuite({ title: 'storySuiteA', parent: fileSuiteA });
@@ -51,7 +59,8 @@ describe(`TeamcityReporter`, () => {
     testFromSuiteA = {
       title: 'testFromSuiteA',
       results: [{ status: 'passed', startTime: new Date(), duration: 1 }],
-      parent: storySuiteA
+      parent: storySuiteA,
+      titlePath,
     } as TestCase;
     storySuiteA.tests.push(testFromSuiteA);
     fileSuiteB = getSuite({ title: 'fileSuiteB', parent: projectSuite });
@@ -61,7 +70,8 @@ describe(`TeamcityReporter`, () => {
     testFromSuiteB = {
       title: 'testFromSuiteB',
       results: [{ status: 'passed', startTime: new Date(), duration: 2 }],
-      parent: storySuiteB
+      parent: storySuiteB,
+      titlePath,
     } as TestCase;
     storySuiteB.tests.push(testFromSuiteB);
   };
@@ -89,98 +99,50 @@ describe(`TeamcityReporter`, () => {
         .toBeCalledWith(error);
     });
 
-    test(`should store suite on begin`, () => {
-      reporter.onBegin(config, projectSuite);
-
-      expect(reporter)
-        .toMatchObject({
-          flowId: expect.any(String),
-          rootSuite: projectSuite,
-        });
-    });
-
     test('should not log configuration to console on begin by default', () => {
-      reporter.onBegin(config, projectSuite);
+      reporter.onBegin(config);
 
       expect(console.log)
-        .not.toHaveBeenCalledWith(expect.stringContaining(`message text='${TeamcityReporter.escape(stringify(config))}'`));
+        .not.toHaveBeenCalledWith(expect.stringContaining(`message text='${escape(stringify(config))}'`));
     });
 
-    describe('Modes::', () => {
-      test('should reports test results continuously when tests executed with single worker', () => {
-        reporter.onBegin({ ...config, workers: 1 }, projectSuite);
-        jest.clearAllMocks();
+    test('should reports test results continuously', () => {
+      reporter.onBegin({ ...config, workers: 2 });
 
-        reporter.onTestBegin(testFromSuiteA);
-        testFromSuiteA.results = [{ status: 'passed', startTime: new Date(), duration: 1 } as TestResult];
-        expect(console.log)
-          .not.toHaveBeenCalled();
+      jest.clearAllMocks();
+      reporter.onTestBegin(testFromSuiteA);
+      expect(console.log)
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${testName(testFromSuiteA)}'`));
+      expect(console.log)
+        .toHaveBeenCalledTimes(1);
 
-        reporter.onTestBegin(testFromSuiteB);
-        testFromSuiteB.results = [{ status: 'passed', startTime: new Date(), duration: 2 } as TestResult];
+      jest.clearAllMocks();
+      testFromSuiteA.results = [{ status: 'passed', startTime: new Date(), duration: 1 } as TestResult];
+      reporter.onTestEnd(testFromSuiteA, testFromSuiteA.results[0]);
+      expect(console.log)
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
+      expect(console.log)
+        .toHaveBeenCalledTimes(1);
 
-        expect(console.log)
-          .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(4, expect.stringContaining(`testSuiteFinished name='${testFromSuiteA.parent.title}'`));
-        expect(console.log)
-          .toHaveBeenCalledTimes(4);
+      jest.clearAllMocks();
+      reporter.onTestBegin(testFromSuiteB);
+      expect(console.log)
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${testName(testFromSuiteB)}'`));
+      expect(console.log)
+        .toHaveBeenCalledTimes(1);
 
-        reporter.onEnd({ status: 'passed' });
-        expect(console.log)
-          .toHaveBeenNthCalledWith(5, expect.stringContaining(`testSuiteStarted name='${testFromSuiteB.parent.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(6, expect.stringContaining(`testStarted name='${testFromSuiteB.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(7, expect.stringContaining(`testFinished name='${testFromSuiteB.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(8, expect.stringContaining(`testSuiteFinished name='${testFromSuiteB.parent.title}'`));
-        expect(console.log)
-          .toHaveBeenCalledTimes(8);
-      });
+      jest.clearAllMocks();
+      testFromSuiteB.results = [{ status: 'passed', startTime: new Date(), duration: 2 } as TestResult];
+      reporter.onTestEnd(testFromSuiteB, testFromSuiteB.results[0]);
+      expect(console.log)
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${testName(testFromSuiteB)}'`));
+      expect(console.log)
+        .toHaveBeenCalledTimes(1);
 
-      test('should reports test results only at the end with multiple workers', () => {
-        reporter.onBegin(config, projectSuite);
-        expect(console.info)
-          .toHaveBeenCalledWith('Playwright is running suites in multiple workers. The results will be reported after all of them finish.');
-
-        jest.clearAllMocks();
-
-        reporter.onTestBegin(testFromSuiteA);
-        testFromSuiteA.results = [{ status: 'passed', startTime: new Date(), duration: 1 } as TestResult];
-        expect(console.log)
-          .not.toHaveBeenCalled();
-
-        reporter.onTestBegin(testFromSuiteB);
-        testFromSuiteB.results = [{ status: 'passed', startTime: new Date(), duration: 2 } as TestResult];
-        expect(console.log)
-          .not.toHaveBeenCalled();
-
-        reporter.onEnd({ status: 'passed' });
-
-        expect(console.log)
-          .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(4, expect.stringContaining(`testSuiteFinished name='${testFromSuiteA.parent.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(5, expect.stringContaining(`testSuiteStarted name='${testFromSuiteB.parent.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(6, expect.stringContaining(`testStarted name='${testFromSuiteB.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(7, expect.stringContaining(`testFinished name='${testFromSuiteB.title}'`));
-        expect(console.log)
-          .toHaveBeenNthCalledWith(8, expect.stringContaining(`testSuiteFinished name='${testFromSuiteB.parent.title}'`));
-        expect(console.log)
-          .toHaveBeenCalledTimes(8);
-      });
+      jest.clearAllMocks();
+      reporter.onEnd({ status: 'passed' });
+      expect(console.log)
+        .not.toHaveBeenCalled();
     });
 
     test(`should allow user to enable test retry`, () => {
@@ -194,31 +156,37 @@ describe(`TeamcityReporter`, () => {
         { status: 'passed', startTime: new Date(), duration: 1 } as TestResult
       ];
 
-      reporter.onBegin(configWithRetries, projectSuite);
+      reporter.onBegin(configWithRetries);
       expect(console.log)
         .toHaveBeenLastCalledWith(expect.stringContaining(`testRetrySupport enabled='true'`));
 
       jest.clearAllMocks();
-
       reporter.onTestBegin(testFromSuiteA);
-      reporter.onEnd({ status: 'passed' });
+      expect(console.log)
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${testName(testFromSuiteA)}'`));
+      expect(console.log)
+        .toHaveBeenCalledTimes(1);
 
+      jest.clearAllMocks();
+      reporter.onTestEnd(testFromSuiteA, testFromSuiteA.results[0]);
       expect(console.log)
-        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFailed name='${testName(testFromSuiteA)}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(2, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
+        .toHaveBeenNthCalledWith(2, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(3, expect.stringContaining(`testFailed name='${testFromSuiteA.title}'`));
+        .toHaveBeenCalledTimes(2);
+
+      jest.clearAllMocks();
+      reporter.onTestEnd(testFromSuiteA, testFromSuiteA.results[1]);
       expect(console.log)
-        .toHaveBeenNthCalledWith(4, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(5, expect.stringContaining(`testStarted name='${testFromSuiteA.title}'`));
+        .toHaveBeenCalledTimes(1);
+
+      jest.clearAllMocks();
+      reporter.onEnd({ status: 'passed' });
       expect(console.log)
-        .toHaveBeenNthCalledWith(6, expect.stringContaining(`testFinished name='${testFromSuiteA.title}'`));
-      expect(console.log)
-        .toHaveBeenNthCalledWith(7, expect.stringContaining(`testSuiteFinished name='${testFromSuiteA.parent.title}'`));
-      expect(console.log)
-        .toHaveBeenCalledTimes(7);
+        .not.toHaveBeenCalled();
     });
   });
 
@@ -229,10 +197,10 @@ describe(`TeamcityReporter`, () => {
     });
 
     test('should log configuration to console on begin if requested', () => {
-      reporter.onBegin(config, projectSuite);
+      reporter.onBegin(config);
 
       expect(console.log)
-        .toHaveBeenCalledWith(expect.stringContaining(`message text='${TeamcityReporter.escape(stringify(config))}'`));
+        .toHaveBeenCalledWith(expect.stringContaining(`message text='${escape(stringify(config))}'`));
     });
   });
 });
