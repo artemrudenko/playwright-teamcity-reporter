@@ -134,11 +134,11 @@ class TeamcityReporter implements Reporter {
   }
 
   #logTestResults(test: TestCase) {
-    const title = escape(test.title);
-    test.results.forEach((result: TestResult) => this.#logResult(title, result, test.timeout));
+    test.results.forEach((result: TestResult) => this.#logResult(test, result));
   }
 
-  #logResult(name: string, result: TestResult, timeout: number) {
+  #logResult(test: TestCase, result: TestResult) {
+    const name = escape(test.title);
     const localISOTime = new Date(result?.startTime.getTime() - TeamcityReporter.#TZ_OFFSET)
       .toISOString()
       .slice(0, -1);
@@ -158,7 +158,7 @@ class TeamcityReporter implements Reporter {
       case 'timedOut':
         this.logToTC(`testFailed`, [
           `name='${name}'`,
-          `message='Timeout of ${timeout}ms exceeded.'`,
+          `message='Timeout of ${test.timeout}ms exceeded.'`,
           `details='${escape(result?.error?.stack || '')}'`
         ]);
         break;
