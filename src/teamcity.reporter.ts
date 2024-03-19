@@ -75,6 +75,11 @@ class TeamcityReporter implements Reporter {
           details: `${result.error?.stack ?? ''}`,
         });
         break;
+      case 'interrupted':
+        this.#writeTestFlow(`testFailed`, test, {
+          message: 'Test interrupted',
+        });
+        break;
       case 'passed':
         break;
       default:
