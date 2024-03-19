@@ -164,6 +164,12 @@ class TeamcityReporter implements Reporter {
           `details='${TeamcityReporter.escape(result?.error?.stack || '')}'`
         ]);
         break;
+      case 'interrupted':
+        this.logToTC(`testFailed`, [
+          `name='${name}'`,
+          `message='Test interrupted'`
+        ]);
+        break;
       case 'passed':
         break;
       default:

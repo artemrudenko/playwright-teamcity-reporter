@@ -1,5 +1,5 @@
-import { FullConfig, FullProject, TestError } from '@playwright/test';
-import { Suite, TestCase, TestResult } from '@playwright/test/reporter';
+import { FullConfig, FullProject } from '@playwright/test';
+import {FullResult, Suite, TestCase, TestResult, TestError} from '@playwright/test/reporter';
 
 import TeamcityReporter from './teamcity.reporter';
 import { stringify } from './utils';
@@ -13,6 +13,8 @@ describe(`TeamcityReporter`, () => {
   let testFromSuiteB: TestCase;
 
   const config: FullConfig = {
+    fullyParallel: false,
+    metadata: {},
     forbidOnly: false,
     globalSetup: null,
     globalTeardown: null,
@@ -130,7 +132,7 @@ describe(`TeamcityReporter`, () => {
         expect(console.log)
           .toHaveBeenCalledTimes(4);
 
-        reporter.onEnd({ status: 'passed' });
+        reporter.onEnd(<FullResult>{ status: 'passed' });
         expect(console.log)
           .toHaveBeenNthCalledWith(5, expect.stringContaining(`testSuiteStarted name='${testFromSuiteB.parent.title}'`));
         expect(console.log)
@@ -160,7 +162,7 @@ describe(`TeamcityReporter`, () => {
         expect(console.log)
           .not.toHaveBeenCalled();
 
-        reporter.onEnd({ status: 'passed' });
+        reporter.onEnd(<FullResult>{ status: 'passed' });
 
         expect(console.log)
           .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
@@ -201,7 +203,7 @@ describe(`TeamcityReporter`, () => {
       jest.clearAllMocks();
 
       reporter.onTestBegin(testFromSuiteA);
-      reporter.onEnd({ status: 'passed' });
+      reporter.onEnd(<FullResult>{ status: 'passed' });
 
       expect(console.log)
         .toHaveBeenNthCalledWith(1, expect.stringContaining(`testSuiteStarted name='${testFromSuiteA.parent.title}'`));
