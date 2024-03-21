@@ -7,3 +7,5 @@ storage
 !/.vscode/launch.json
 
 .env
+
+.idea/
