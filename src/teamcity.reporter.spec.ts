@@ -1,10 +1,10 @@
-import { FullConfig, FullProject, TestError } from '@playwright/test';
-import { Suite, TestCase, TestResult } from '@playwright/test/reporter';
+import { FullConfig, FullProject } from '@playwright/test';
+import { Suite, TestCase, TestError, TestResult } from '@playwright/test/reporter';
 
-import TeamcityReporter, { escape, testName } from './teamcity.reporter';
-import { stringify } from './utils';
+import TeamcityReporter from './teamcity.reporter';
+import { stringify, escape, getTestName } from './utils';
 
-function titlePath(this: TestCase | Suite) {
+function getTitle(this: TestCase | Suite) {
   return this.parent
     ? [...this.parent.titlePath(), this.title]
     : [this.title];
@@ -36,14 +36,18 @@ describe(`TeamcityReporter`, () => {
     updateSnapshots: "none",
     version: "MOCK_VERSION",
     workers: 4,
-    webServer: null
+    webServer: null,
+    fullyParallel: false,
+    metadata: {}
   };
 
   const getSuite = (suite: Partial<Suite> = {}): Suite => ({
     suites: [],
+    entries: jest.fn(() => []),
     tests: [],
     title: '',
-    titlePath: titlePath,
+    type: 'project',
+    titlePath: getTitle,
     allTests: jest.fn(),
     project: jest.fn(),
     ...suite
@@ -60,7 +64,7 @@ describe(`TeamcityReporter`, () => {
       title: 'testFromSuiteA',
       results: [{ status: 'passed', startTime: new Date(), duration: 1 }],
       parent: storySuiteA,
-      titlePath,
+      titlePath: getTitle,
     } as TestCase;
     storySuiteA.tests.push(testFromSuiteA);
     fileSuiteB = getSuite({ title: 'fileSuiteB', parent: projectSuite });
@@ -71,7 +75,7 @@ describe(`TeamcityReporter`, () => {
       title: 'testFromSuiteB',
       results: [{ status: 'passed', startTime: new Date(), duration: 2 }],
       parent: storySuiteB,
-      titlePath,
+      titlePath: getTitle,
     } as TestCase;
     storySuiteB.tests.push(testFromSuiteB);
   };
@@ -103,7 +107,9 @@ describe(`TeamcityReporter`, () => {
       reporter.onBegin(config);
 
       expect(console.log)
-        .not.toHaveBeenCalledWith(expect.stringContaining(`message text='${escape(stringify(config))}'`));
+        .not.toHaveBeenCalledWith(
+          expect.stringContaining(`message text='${escape(stringify(config))}'`)
+        );
     });
 
     test('should reports test results continuously', () => {
@@ -112,7 +118,7 @@ describe(`TeamcityReporter`, () => {
       jest.clearAllMocks();
       reporter.onTestBegin(testFromSuiteA);
       expect(console.log)
-        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${testName(testFromSuiteA)}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${getTestName(testFromSuiteA)}'`));
       expect(console.log)
         .toHaveBeenCalledTimes(1);
 
@@ -120,14 +126,14 @@ describe(`TeamcityReporter`, () => {
       testFromSuiteA.results = [{ status: 'passed', startTime: new Date(), duration: 1 } as TestResult];
       reporter.onTestEnd(testFromSuiteA, testFromSuiteA.results[0]);
       expect(console.log)
-        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${getTestName(testFromSuiteA)}'`));
       expect(console.log)
         .toHaveBeenCalledTimes(1);
 
       jest.clearAllMocks();
       reporter.onTestBegin(testFromSuiteB);
       expect(console.log)
-        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${testName(testFromSuiteB)}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${getTestName(testFromSuiteB)}'`));
       expect(console.log)
         .toHaveBeenCalledTimes(1);
 
@@ -135,12 +141,16 @@ describe(`TeamcityReporter`, () => {
       testFromSuiteB.results = [{ status: 'passed', startTime: new Date(), duration: 2 } as TestResult];
       reporter.onTestEnd(testFromSuiteB, testFromSuiteB.results[0]);
       expect(console.log)
-        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${testName(testFromSuiteB)}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${getTestName(testFromSuiteB)}'`));
       expect(console.log)
         .toHaveBeenCalledTimes(1);
 
       jest.clearAllMocks();
-      reporter.onEnd({ status: 'passed' });
+      reporter.onEnd({
+        status: 'passed',
+        startTime: new Date(),
+        duration: 1000
+      });
       expect(console.log)
         .not.toHaveBeenCalled();
     });
@@ -163,28 +173,32 @@ describe(`TeamcityReporter`, () => {
       jest.clearAllMocks();
       reporter.onTestBegin(testFromSuiteA);
       expect(console.log)
-        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${testName(testFromSuiteA)}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testStarted name='${getTestName(testFromSuiteA)}'`));
       expect(console.log)
         .toHaveBeenCalledTimes(1);
 
       jest.clearAllMocks();
       reporter.onTestEnd(testFromSuiteA, testFromSuiteA.results[0]);
       expect(console.log)
-        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFailed name='${testName(testFromSuiteA)}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFailed name='${getTestName(testFromSuiteA)}'`));
       expect(console.log)
-        .toHaveBeenNthCalledWith(2, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
+        .toHaveBeenNthCalledWith(2, expect.stringContaining(`testFinished name='${getTestName(testFromSuiteA)}'`));
       expect(console.log)
         .toHaveBeenCalledTimes(2);
 
       jest.clearAllMocks();
       reporter.onTestEnd(testFromSuiteA, testFromSuiteA.results[1]);
       expect(console.log)
-        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${testName(testFromSuiteA)}'`));
+        .toHaveBeenNthCalledWith(1, expect.stringContaining(`testFinished name='${getTestName(testFromSuiteA)}'`));
       expect(console.log)
         .toHaveBeenCalledTimes(1);
 
       jest.clearAllMocks();
-      reporter.onEnd({ status: 'passed' });
+      reporter.onEnd({
+        status: 'passed',
+        startTime: new Date(),
+        duration: 1000
+      });
       expect(console.log)
         .not.toHaveBeenCalled();
     });

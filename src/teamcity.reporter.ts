@@ -1,44 +1,13 @@
-import { Reporter, FullConfig, TestCase, TestError, TestResult, FullResult } from '@playwright/test/reporter';
+import {
+  Reporter, FullConfig, TestCase,
+  TestError, TestResult, FullResult
+} from '@playwright/test/reporter';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 
 import { NotImplementedError } from './errors';
 import { ActionType, ITeamcityReporterConfiguration } from './teamcity.model';
-import { stringify } from './utils';
-
-// Escape text message to be compatible with Teamcity
-// https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
-export function escape(text: string): string {
-  if (!text) {
-    return '';
-  }
-  /* eslint-disable no-control-regex */
-  return text
-    .replace(/\x1B.*?m/g, "")
-    .replace(/\|/g, "||")
-    .replace(/\n/g, "|n")
-    .replace(/\r/g, "|r")
-    .replace(/\[/g, "|[")
-    .replace(/\]/g, "|]")
-    .replace(/\u0085/g, "|x")
-    .replace(/\u2028/g, "|l")
-    .replace(/\u2029/g, "|p")
-    .replace(/'/g, "|'");
-  /* eslint-enable no-control-regex */
-}
-
-function writeServiceMessage(messageName: ActionType, parts: Record<string, string>): void {
-  const textParts = Object.entries(parts)
-    .map(([key, value]) => ` ${key}='${escape(value)}'`)
-    .join('');
-
-  console.log(`##teamcity[${messageName}${textParts}]`);
-}
-
-export function testName(test: TestCase) {
-  // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Interpreting+Test+Names
-  return test.titlePath().filter(title => title).join(': ');
-}
+import { stringify, writeServiceMessage, getTestName, TextParts } from './utils';
 
 // https://www.jetbrains.com/help/teamcity/service-messages.html
 class TeamcityReporter implements Reporter {
@@ -154,16 +123,16 @@ class TeamcityReporter implements Reporter {
 
     writeServiceMessage(`testMetadata`, {
       type,
-      testName: testName(test),
+      testName: getTestName(test),
       name: attachment.name,
       value,
       flowId: this.#getFlowId(test),
     });
   }
 
-  #writeTestFlow(messageName: ActionType, test: TestCase, parts: Record<string, string> = {}): void {
+  #writeTestFlow(messageName: ActionType, test: TestCase, parts: TextParts = {}): void {
     writeServiceMessage(messageName, {
-      name: testName(test),
+      name: getTestName(test),
       ...parts,
       flowId: this.#getFlowId(test),
     });
