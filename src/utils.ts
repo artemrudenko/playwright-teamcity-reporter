@@ -7,7 +7,7 @@ export type TextParts = Record<string, string>;
 const replacer = () => {
   const seen = new WeakSet();
   return (key: string, value: any) => {
-    if (typeof value === 'object' && value !== null) {
+    if (typeof value === "object" && value !== null) {
       if (seen.has(value)) {
         return;
       }
@@ -42,10 +42,10 @@ export const escape = (text: string): string => text
 export const writeServiceMessage = (messageName: ActionType, parts: TextParts): void => {
   const textParts = Object.entries(parts)
     .map(([key, value]) => ` ${key}='${escape(value)}'`)
-    .join('');
+    .join("");
 
   console.log(`##teamcity[${messageName}${textParts}]`);
 };
 
 // https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Interpreting+Test+Names
-export const getTestName = (test: TestCase) => test.titlePath().filter(title => title).join(': ');
+export const getTestName = (test: TestCase) => test.titlePath().filter(title => title).join(": ");
