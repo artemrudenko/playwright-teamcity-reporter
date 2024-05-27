@@ -73,8 +73,8 @@ class TeamcityReporter implements Reporter {
         break;
       case "timedOut":
         this.#writeTestFlow("testFailed", test, {
-          message: `Timeout of ${test.timeout}ms exceeded.`,
-          details: `${result.error?.stack ?? ""}`,
+          message: `${result.error?.message ?? ""}`,
+          details: result.errors.map((e) => e.message).join("\n"),
         });
         break;
       case "failed":
