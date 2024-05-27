@@ -1,6 +1,6 @@
 {
   "name": "playwright-teamcity-reporter",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Playwright Teamcity Reporter",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,7 +29,20 @@
     "teamcity",
     "reporter"
   ],
-  "author": "artemr2009@gmail.com",
+  "author": {
+    "name": "Artem Rudenko",
+    "email": "artemr2009@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "Andrea Canciani",
+      "url": "https://github.com/ranma42"
+    },
+    {
+      "name": "Michal Stanke",
+      "url": "https://github.com/MikkCZ"
+    }
+  ],
   "license": "MIT",
   "devDependencies": {
     "@playwright/test": "^1.42.1",

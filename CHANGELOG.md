@@ -5,14 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v1.0.1
+## [v1.0.3](https://github.com/artemrudenko/playwright-teamcity-reporter/compare/v1.0.1...v1.0.3)
+
+> 27 May 2024
+
+- Improve error feedback upon timeout (v2) [`#19`](https://github.com/artemrudenko/playwright-teamcity-reporter/pull/19)
+- add contributors info [`825e6ad`](https://github.com/artemrudenko/playwright-teamcity-reporter/commit/825e6adf7be97569c12f23b7064df2368ce48a13)
+- improve error feedback upon timeout [`896d391`](https://github.com/artemrudenko/playwright-teamcity-reporter/commit/896d39155e89afbce7edbe19cb4f19550e79287a)
+
+## [v1.0.1](https://github.com/artemrudenko/playwright-teamcity-reporter/compare/v0.2.2...v1.0.1)
+
+> 17 May 2024
 
 - Add `interrupted` status [`#17`](https://github.com/artemrudenko/playwright-teamcity-reporter/pull/17)
 - fix codacity warnings [`25b719a`](https://github.com/artemrudenko/playwright-teamcity-reporter/commit/25b719a4691930f653b8c5f2530f164e8c5459ea)
 - update version [`c05f7d7`](https://github.com/artemrudenko/playwright-teamcity-reporter/commit/c05f7d7c93ed074c6464c0ec4cbff02ea8a25a67)
 - Added `interrupted` test status <https://playwright.dev/docs/api/class-reporter#reporter-on-end> [`52c63d8`](https://github.com/artemrudenko/playwright-teamcity-reporter/commit/52c63d8d872d9aba860df8c093d8154695105f15)
 
-## v0.2.2
+## [v0.2.2](https://github.com/artemrudenko/playwright-teamcity-reporter/compare/v0.2.1...v0.2.2)
 
 > 17 May 2024
 
