@@ -128,6 +128,8 @@ class TeamcityReporter implements Reporter {
     let type;
     switch (attachment.contentType) {
       case "image/png":
+        type = `type="image"`;
+        break;
       case "application/zip":
         type = `type="artifact"`;
         break;
