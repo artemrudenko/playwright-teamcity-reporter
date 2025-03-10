@@ -116,6 +116,8 @@ class TeamcityReporter implements Reporter {
     // "test-results" should be a part of the artifacts directory
     let value = "";
     if (attachment.path !== undefined) {
+      if (attachment.path.indexOf("test-results") === -1) return;
+
       const artifact = this.#testMetadataArtifacts;
       value = attachment.path;
       value = value.split(path.sep).join(path.posix.sep);
@@ -128,14 +130,18 @@ class TeamcityReporter implements Reporter {
     let type;
     switch (attachment.contentType) {
       case "image/png":
-        type = `type="image"`;
+        type = "image";
+        break;
+      case "video/mp4":
+      case "video/webm":
+        type = "video";
         break;
       case "application/zip":
-        type = `type="artifact"`;
+        type = "artifact";
         break;
       case "application/json":
       default:
-        type = `type="text"`;
+        type = "text";
     }
 
     writeServiceMessage("testMetadata", {
