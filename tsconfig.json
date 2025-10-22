@@ -20,7 +20,7 @@
     "outDir": "./dist",
     "target": "es2020",
     "sourceMap": true,
-    "strict": true,
+    "strict": true
   },
   "include": [
     "src",

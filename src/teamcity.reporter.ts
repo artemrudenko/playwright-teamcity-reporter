@@ -9,22 +9,61 @@ import { NotImplementedError } from "./errors";
 import { ActionType, ITeamcityReporterConfiguration } from "./teamcity.model";
 import { stringify, writeServiceMessage, getTestName, TextParts } from "./utils";
 
-// https://www.jetbrains.com/help/teamcity/service-messages.html
+// Constants
+const DEFAULT_TEST_RESULTS_DIR = "test-results";
+const ZIP_EXTENSION = ".zip";
+const ZIP_SEPARATOR = "!";
+
+// Content type constants
+const CONTENT_TYPE_IMAGE_PNG = "image/png";
+const CONTENT_TYPE_VIDEO_MP4 = "video/mp4";
+const CONTENT_TYPE_VIDEO_WEBM = "video/webm";
+const CONTENT_TYPE_APPLICATION_ZIP = "application/zip";
+const CONTENT_TYPE_APPLICATION_JSON = "application/json";
+
+// TeamCity metadata type constants
+const METADATA_TYPE_IMAGE = "image";
+const METADATA_TYPE_VIDEO = "video";
+const METADATA_TYPE_ARTIFACT = "artifact";
+const METADATA_TYPE_TEXT = "text";
+
+// Test status messages
+const MESSAGE_SKIPPED = "skipped";
+const MESSAGE_TEST_INTERRUPTED = "Test interrupted";
+
+/**
+ * TeamCity reporter for Playwright test results.
+ * Converts Playwright test events into TeamCity service messages.
+ * @see https://www.jetbrains.com/help/teamcity/service-messages.html
+ */
 class TeamcityReporter implements Reporter {
   readonly #testMetadataArtifacts: string;
 
   readonly #flowIds = new Map<TestCase, string>();
 
+  /**
+   * Creates a new TeamCity reporter instance.
+   * @param configuration - Optional configuration for the reporter
+   */
   constructor(private configuration?: ITeamcityReporterConfiguration) {
     this.#testMetadataArtifacts = configuration?.testMetadataArtifacts
       ?? process.env.TEAMCITY_ARTIFACTS_PW_RESULT
-      ?? "test-results";
+      ?? DEFAULT_TEST_RESULTS_DIR;
   }
 
+  /**
+   * Indicates that this reporter prints to standard output.
+   * @returns Always returns true
+   */
   printsToStdio(): boolean {
     return true;
   }
 
+  /**
+   * Called at the beginning of the test run.
+   * Logs configuration if requested and enables test retry support if configured.
+   * @param config - The full Playwright configuration
+   */
   onBegin(config: FullConfig): void {
     if (this.configuration?.logConfig) {
       writeServiceMessage("message", {
@@ -40,10 +79,19 @@ class TeamcityReporter implements Reporter {
     }
   }
 
+  /**
+   * Called when a test begins execution.
+   * @param test - The test case that is starting
+   */
   onTestBegin(test: TestCase): void {
     this.#writeTestFlow("testStarted", test);
   }
 
+  /**
+   * Called when a test outputs to stdout.
+   * @param chunk - The output chunk (string or buffer)
+   * @param test - Optional test case associated with the output
+   */
   onStdOut(chunk: string | Buffer, test?: TestCase): void {
     if (test) {
       this.#writeTestFlow("testStdOut", test, {
@@ -54,6 +102,11 @@ class TeamcityReporter implements Reporter {
     }
   }
 
+  /**
+   * Called when a test outputs to stderr.
+   * @param chunk - The error output chunk (string or buffer)
+   * @param test - Optional test case associated with the output
+   */
   onStdErr(chunk: string | Buffer, test?: TestCase): void {
     if (test) {
       this.#writeTestFlow("testStdErr", test, {
@@ -64,11 +117,17 @@ class TeamcityReporter implements Reporter {
     }
   }
 
+  /**
+   * Called when a test finishes execution.
+   * Reports test status, attachments, and duration to TeamCity.
+   * @param test - The test case that finished
+   * @param result - The test result containing status, errors, and attachments
+   */
   onTestEnd(test: TestCase, result: TestResult): void {
     switch (result.status) {
       case "skipped":
         this.#writeTestFlow("testIgnored", test, {
-          message: "skipped",
+          message: MESSAGE_SKIPPED,
         });
         break;
       case "timedOut":
@@ -85,7 +144,7 @@ class TeamcityReporter implements Reporter {
         break;
       case "interrupted":
         this.#writeTestFlow("testFailed", test, {
-          message: "Test interrupted",
+          message: MESSAGE_TEST_INTERRUPTED,
         });
         break;
       case "passed":
@@ -101,12 +160,23 @@ class TeamcityReporter implements Reporter {
     this.#writeTestFlow("testFinished", test, {
       duration: `${result.duration}`
     });
+
+    // Clean up flow ID to prevent memory leaks
+    this.#flowIds.delete(test);
   }
 
+  /**
+   * Called when a global error occurs during test execution.
+   * @param error - The error that occurred
+   */
   onError(error: TestError): void {
     console.error(error);
   }
 
+  /**
+   * Called when the entire test run completes.
+   * @param result - The final result of the test run
+   */
   onEnd(result: FullResult): void {
     console.info(`Finished the run: ${result.status}`);
   }
@@ -116,32 +186,34 @@ class TeamcityReporter implements Reporter {
     // "test-results" should be a part of the artifacts directory
     let value = "";
     if (attachment.path !== undefined) {
-      if (attachment.path.indexOf("test-results") === -1) return;
+      const testResultsIndex = attachment.path.indexOf(DEFAULT_TEST_RESULTS_DIR);
+      if (testResultsIndex === -1) return;
 
       const artifact = this.#testMetadataArtifacts;
       value = attachment.path;
       value = value.split(path.sep).join(path.posix.sep);
-      value = value.slice(value.indexOf("test-results") + 13);
-      value = `${artifact}${artifact.endsWith(".zip") ? "!" : ""}/${value}`;
+      // Skip past "test-results/" in the path
+      value = value.slice(testResultsIndex + DEFAULT_TEST_RESULTS_DIR.length + 1);
+      value = `${artifact}${artifact.endsWith(ZIP_EXTENSION) ? ZIP_SEPARATOR : ""}/${value}`;
     } else if (attachment.body !== undefined) {
       value = attachment.body.toString("base64");
     }
 
     let type;
     switch (attachment.contentType) {
-      case "image/png":
-        type = "image";
+      case CONTENT_TYPE_IMAGE_PNG:
+        type = METADATA_TYPE_IMAGE;
         break;
-      case "video/mp4":
-      case "video/webm":
-        type = "video";
+      case CONTENT_TYPE_VIDEO_MP4:
+      case CONTENT_TYPE_VIDEO_WEBM:
+        type = METADATA_TYPE_VIDEO;
         break;
-      case "application/zip":
-        type = "artifact";
+      case CONTENT_TYPE_APPLICATION_ZIP:
+        type = METADATA_TYPE_ARTIFACT;
         break;
-      case "application/json":
+      case CONTENT_TYPE_APPLICATION_JSON:
       default:
-        type = "text";
+        type = METADATA_TYPE_TEXT;
     }
 
     writeServiceMessage("testMetadata", {
