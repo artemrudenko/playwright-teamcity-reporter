@@ -4,9 +4,17 @@ import { ActionType } from "./teamcity.model";
 
 export type TextParts = Record<string, string>;
 
-const replacer = () => {
+/**
+ * Serializes data to JSON string while handling circular references.
+ * Converts double quotes to single quotes for TeamCity compatibility.
+ * @param data - The data to stringify
+ * @param space - Optional spacing for pretty printing
+ * @returns JSON string with single quotes
+ */
+export const stringify = (data: any, space?: number): string => {
+  // Create a new WeakSet for each stringify call to track circular references
   const seen = new WeakSet();
-  return (key: string, value: any) => {
+  const replacer = (key: string, value: any) => {
     if (typeof value === "object" && value !== null) {
       if (seen.has(value)) {
         return;
@@ -15,14 +23,16 @@ const replacer = () => {
     }
     return value;
   };
+  return JSON.stringify(data, replacer, space).replace(/"/g, "'");
 };
 
-export const stringify = (data: any, space?: number) => {
-  return JSON.stringify(data, replacer(), space).replace(/"/g, "'");
-};
-
-// Escape text message to be compatible with Teamcity
-// https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
+/**
+ * Escapes text to be compatible with TeamCity service message format.
+ * Handles special characters, ANSI color codes, and Unicode line separators.
+ * @param text - The text to escape
+ * @returns Escaped text safe for TeamCity service messages
+ * @see https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
+ */
 /* eslint-disable no-control-regex */
 export const escape = (text: string): string => text
   ? text
@@ -39,6 +49,11 @@ export const escape = (text: string): string => text
   : '';
 /* eslint-enable no-control-regex */
 
+/**
+ * Writes a TeamCity service message to stdout.
+ * @param messageName - The type of service message (e.g., 'testStarted', 'testFinished')
+ * @param parts - Key-value pairs to include in the message
+ */
 export const writeServiceMessage = (messageName: ActionType, parts: TextParts): void => {
   const textParts = Object.entries(parts)
     .map(([key, value]) => ` ${key}='${escape(value)}'`)
@@ -47,5 +62,11 @@ export const writeServiceMessage = (messageName: ActionType, parts: TextParts): 
   console.log(`##teamcity[${messageName}${textParts}]`);
 };
 
-// https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Interpreting+Test+Names
-export const getTestName = (test: TestCase) => test.titlePath().filter(title => title).join(": ");
+/**
+ * Generates a qualified test name from a test case.
+ * Joins all non-empty titles in the test's hierarchy with ': '.
+ * @param test - The test case
+ * @returns Formatted test name (e.g., 'Suite: SubSuite: Test Name')
+ * @see https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Interpreting+Test+Names
+ */
+export const getTestName = (test: TestCase): string => test.titlePath().filter(title => title).join(": ");
