@@ -1,6 +1,7 @@
 dist
 node_modules
 storage
+coverage
 
 .vscode
 !/.vscode/settings.json
