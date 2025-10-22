@@ -31,7 +31,7 @@ export const stringify = (data: any, space?: number): string => {
  * Handles special characters, ANSI color codes, and Unicode line separators.
  * @param text - The text to escape
  * @returns Escaped text safe for TeamCity service messages
- * @see https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Escaped+values
+ * @see https://www.jetbrains.com/help/teamcity/service-messages.html#Escaped+values
  */
 /* eslint-disable no-control-regex */
 export const escape = (text: string): string => text
@@ -67,6 +67,6 @@ export const writeServiceMessage = (messageName: ActionType, parts: TextParts): 
  * Joins all non-empty titles in the test's hierarchy with ': '.
  * @param test - The test case
  * @returns Formatted test name (e.g., 'Suite: SubSuite: Test Name')
- * @see https://www.jetbrains.com/help/teamcity/2021.2/service-messages.html#Interpreting+Test+Names
+ * @see https://www.jetbrains.com/help/teamcity/service-messages.html#Interpreting+Test+Names
  */
 export const getTestName = (test: TestCase): string => test.titlePath().filter(title => title).join(": ");
